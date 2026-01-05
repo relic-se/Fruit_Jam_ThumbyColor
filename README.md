@@ -1,5 +1,5 @@
-# Fruit_Jam_Application
-Template for a CircuitPython application for the Adafruit Fruit Jam which is compatible with Fruit Jam OS.
+# TinyPuzzleAttack for the Adafruit Fruit Jam
+Original game for the [TinyCircuits Thumby Color](https://tinycircuits.com/products/thumby-color) found at https://github.com/TinyCircuits/TinyCircuits-Thumby-Color-Games/tree/main/PuzzleAttack.
 
 ## Building
 Ensure that you have python 3.x installed system-wide and all the prerequisite libraries installed using the following command:
