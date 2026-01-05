@@ -14,6 +14,7 @@ import engine_save
 import json
 import os
 import math
+from micropython import const
 
 CHEAT_MODE = const(True)
 
@@ -21,7 +22,7 @@ engine_save.set_location("save.data")
 
 engine.fps_limit(30)
 
-font = FontResource("outrunner_outline.bmp")
+font = FontResource("fonts/outrunner_outline.bmp")
 
 sfxWin = WaveSoundResource("sfx/win.wav")
 sfxLose = WaveSoundResource("sfx/lose.wav")
@@ -31,12 +32,12 @@ sfxNav = WaveSoundResource("sfx/nav.wav")
 sfxCursor = WaveSoundResource("sfx/cursor.wav")
 sfxPops = [WaveSoundResource("sfx/pop"+str(i+1)+".wav") for i in range(8)]
 
-texLogo = TextureResource("logo.bmp")
-texBG = TextureResource("bg.bmp")
-texBlocks = TextureResource("blocks.bmp")
-texCursor = TextureResource("cursor.bmp")
-texCheckmark = TextureResource("checkmark.bmp")
-texLock = TextureResource("lock.bmp")
+texLogo = TextureResource("bitmaps/logo.bmp")
+texBG = TextureResource("bitmaps/bg.bmp")
+texBlocks = TextureResource("bitmaps/blocks.bmp")
+texCursor = TextureResource("bitmaps/cursor.bmp")
+texCheckmark = TextureResource("bitmaps/checkmark.bmp")
+texLock = TextureResource("bitmaps/lock.bmp")
 TRANSPARENT_COLOR = const(0xf81f)
 
 MODE_NORMAL = const(0)
