@@ -1,5 +1,6 @@
 {
-    "title": "Application",
-    "description": "Template for a Fruit Jam OS application.",
+    "title": "PuzzleAttack",
+    "author": "Demod",
+    "description": "Simple but challenging block-based puzzle game",
     "icon": "icon.bmp"
 }
