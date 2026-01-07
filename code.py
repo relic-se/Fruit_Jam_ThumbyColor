@@ -43,7 +43,12 @@ except ValueError:  # invalid user config or no user config provided
 display = supervisor.runtime.display
 
 # create root group
+DISPLAY_SIZE = 128
+SCALE = math.floor(min(display.width, display.height) / DISPLAY_SIZE)
 root_group = displayio.Group()
+root_group.x = (display.width - DISPLAY_SIZE*SCALE)//2
+root_group.y = (display.height - DISPLAY_SIZE*SCALE)//2
+root_group.scale = SCALE
 display.root_group = root_group
 display.auto_refresh = False
 
@@ -51,8 +56,6 @@ root_group.append(bg_group := displayio.Group())
 root_group.append(sprite_group := displayio.Group())
 root_group.append(ui_group := displayio.Group())
 for group in root_group:
-    group.x = display.width//2
-    group.y = display.height//2
     group.hidden = True
 
 # setup input devices
@@ -442,6 +445,7 @@ class Sprite(Group):
 class Rectangle(Group):
 
     def __init__(self, pixel_shader: displayio.Palette, width: int, height: int, outline: bool = False, position: tuple = None, scale: int = 1):
+        # BUG: vectorio doesn't scale right
         super().__init__(position, scale)
         self._outline = outline
         for i in range(4 if outline else 1):  # NOTE: Maybe implement `adafruit_display_shapes`?
@@ -937,7 +941,6 @@ stateLoad = True
 stateUnload = False
 def setState(next):
     global state, frame, stateUnload
-    print("state", next)
     state = next
     frame = 0
     stateUnload = True
