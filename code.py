@@ -1,44 +1,549 @@
-import engine_main
+# load included modules if we aren't installed on the root path
+if len(__file__.split("/")[:-1]) > 1:
+    lib_path = "/".join(__file__.split("/")[:-1]) + "/lib"
+    try:
+        import os
+        os.stat(lib_path)
+    except:
+        pass
+    else:
+        import sys
+        sys.path.append(lib_path)
 
-import engine
-from engine_draw import Color
-import engine_draw
-from engine_nodes import Rectangle2DNode, CameraNode, EmptyNode, Sprite2DNode, Text2DNode
-from engine_animation import Tween, ONE_SHOT, EASE_ELAST_IN_OUT
-from engine_math import Vector2, Vector3
-from engine_resources import TextureResource, FontResource, WaveSoundResource
-import engine_io
-import engine_audio
-import engine_save
-
+import atexit
+from audiocore import WaveFile
+from audiomixer import Mixer
+import displayio
 import json
 import os
 import math
 from micropython import const
+import supervisor
+import sys
+import time
+import vectorio
+
+import adafruit_fruitjam.peripherals
+import adafruit_imageload
+from adafruit_usb_host_mouse import find_and_init_boot_mouse
+from relic_usb_host_gamepad import Gamepad, BUTTON_A, BUTTON_B, BUTTON_L1, BUTTON_R1, BUTTON_HOME, BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT, BUTTON_JOYSTICK_UP, BUTTON_JOYSTICK_DOWN, BUTTON_JOYSTICK_LEFT, BUTTON_JOYSTICK_RIGHT
+
+# get Fruit Jam OS config if available
+try:
+    import launcher_config
+    config = launcher_config.LauncherConfig()
+except ImportError:
+    config = None
+
+# setup display
+try:
+    adafruit_fruitjam.peripherals.request_display_config()  # user display configuration
+except ValueError:  # invalid user config or no user config provided
+    adafruit_fruitjam.peripherals.request_display_config(720, 400)  # default display size
+display = supervisor.runtime.display
+
+# create root group
+root_group = displayio.Group()
+display.root_group = root_group
+display.auto_refresh = False
+
+root_group.append(bg_group := displayio.Group())
+root_group.append(sprite_group := displayio.Group())
+root_group.append(ui_group := displayio.Group())
+for group in root_group:
+    group.x = display.width//2
+    group.y = display.height//2
+    group.hidden = True
+
+# setup input devices
+keys = []
+KEY_MAP = {
+    "J": BUTTON_A,
+    "Z": BUTTON_A,
+    "K": BUTTON_B,
+    "X": BUTTON_B,
+    "Q": BUTTON_L1,
+    "C": BUTTON_L1,
+    "E": BUTTON_R1,
+    "V": BUTTON_R1,
+    "\x1b": BUTTON_HOME,
+    "W": BUTTON_UP,
+    "S": BUTTON_DOWN,
+    "A": BUTTON_LEFT,
+    "D": BUTTON_RIGHT,
+    "\x1b[A": BUTTON_UP,
+    "\x1b[B": BUTTON_DOWN,
+    "\x1b[D": BUTTON_LEFT,
+    "\x1b[C": BUTTON_RIGHT,
+}
+
+gamepad = Gamepad()
+rumbleFrames = 0
+def rumble(frames, intensity):
+    global rumbleFrames
+    if gamepad.connected and hasattr(gamepad._device, "rumble"):
+        gamepad._device.rumble = intensity
+    rumbleFrames = frames
+def stopRumble() -> None:
+    if gamepad.connected and hasattr(gamepad._device, "rumble"):
+        gamepad._device.rumble = 0
+def is_just_pressed(*key_numbers: int) -> bool:
+    if gamepad.connected and any(event.pressed and event.key_number in key_numbers for event in gamepad.events):
+        return True
+    if keys and any(key in KEY_MAP and KEY_MAP[key] in key_numbers for key in keys):
+        return True
+    return False
+
+mouse = None
+if config is not None and config.use_mouse and (mouse := find_and_init_boot_mouse()) is not None:
+    root_group.append(mouse.tilegrid)
+
+def atexit_callback() -> None:
+    if mouse and mouse.was_attached and not mouse.device.is_kernel_driver_active(0):
+        mouse.device.attach_kernel_driver(0)
+atexit.register(atexit_callback)
+
+# engine compatibility
+
+EASE_LINEAR = const(1)
+EASE_ELAST_IN_OUT = const(2)
+
+nodes = []
+timestamp = None
+frame = 0
+def tick() -> None:
+    global timestamp, frame, rumbleFrames, keys
+
+    display.refresh(
+        target_frames_per_second=30,
+    )
+
+    # gamepad
+    gamepad.update()
+    if rumbleFrames > 0:
+        rumbleFrames -= 1
+        if rumbleFrames == 0:
+            stopRumble()
+
+    # mouse
+    if mouse is not None:
+        mouse.update()
+
+    # keyboard
+    keys = []
+    if (available := supervisor.runtime.serial_bytes_available) > 0:
+        buffer = sys.stdin.read(available)
+        while buffer:
+            key = buffer[0]
+            buffer = buffer[1:]
+            if key == "\x1b" and buffer and buffer[0] == "[" and len(buffer) >= 2:
+                key += buffer[:2]
+                buffer = buffer[2:]
+                if buffer and buffer[0] == "~":
+                    key += buffer[0]
+                    buffer = buffer[1:]
+            keys.append(key.upper())
+
+    # tick nodes
+    current = time.monotonic()
+    if timestamp is not None:
+        dt = timestamp - current
+        for node in nodes:
+            node.tick(dt)
+    timestamp = current
+
+    frame += 1
+
+class Node:
+
+    def __init__(self):
+        global nodes
+        nodes.append(self)
+
+    def tick(self, dt: float) -> None:
+        pass
+
+class Tween(Node):
+
+    C5 = (2 * math.pi) / 4.5
+
+    def __init__(self):
+        super().__init__()
+
+        self.duration = None
+        self.ease_type = EASE_LINEAR
+
+        self._start = None
+        self._end = None
+        self._position = None
+        self._playing = False
+        self._finished = False
+
+    def start(self, obj: object, attr_name: str, start: float|tuple, end: float|tuple, duration: float, ease_type: int = EASE_LINEAR) -> None:
+        self._obj = obj
+        self._attr_name = attr_name
+        self._start = start
+        self._end = end
+        self.duration = duration
+        self.ease_type = ease_type
+        self.restart()
+
+    def end(self) -> None:
+        setattr(self._obj, self._attr_name, self._end)
+        self._position = 1
+        self._playing = False
+        self._finished = True
+
+    def pause(self) -> None:
+        if not self._finished:
+            self._playing = False
+
+    def unpause(self) -> None:
+        if not self._finished:
+            self._playing = True
+
+    def restart(self) -> None:
+        setattr(self._obj, self._attr_name, self._start)
+        self._position = 0
+        self._playing = True
+        self._finished = False
+
+    def _ease(self, value: float) -> float:
+        if self.ease_type == EASE_ELAST_IN_OUT:
+            if value < 0.5:
+                return -(pow(2, 20 * value - 10) * math.sin((20 * value - 11.125) * self.C5)) / 2
+            else:
+                return (pow(2, -20 * value + 10) * math.sin((20 * value - 11.125) * self.C5)) / 2 + 1
+        return value  # EASE_LINEAR
+    
+    def _tween(self, position: float, start: float, end: float) -> float:
+        return (end - start) * position + start
+
+    def tick(self, dt: float) -> None:
+        if self._playing:
+            self._position += dt / self.duration
+            if self._position >= 1:
+                self.end()
+            else:
+                position = self._ease(self._position)
+                if isinstance(self._end, tuple):
+                    value = (
+                        self._tween(position, self._start[0], self._end[0]),
+                        self._tween(position, self._start[1], self._end[1])
+                    )
+                else:
+                    value = self._tween(position, self._start, self._end)
+                setattr(self._obj, self._attr_name, value)
+
+    @property
+    def finished(self) -> bool:
+        return self._finished
+
+class Group(Node):
+
+    def __init__(self, position: tuple = None, scale: int = 1):
+        super().__init__()
+        self._group = displayio.Group(scale=scale)
+        self.position = position
+
+    @property
+    def position(self) -> tuple:
+        return (self._x, self._y)
+    
+    @position.setter
+    def position(self, value: tuple) -> None:
+        if value is None:
+            self._x, self._y, self._group.x, self._group.y = [0] * 4
+        else:
+            self._x, self._y = [float(x) for x in value]
+            self._group.x, self._group.y = [int(x) for x in value]
+
+    @property
+    def x(self) -> float:
+        return self._x
+
+    @property
+    def y(self) -> float:
+        return self._y
+
+    def append(self, obj) -> None:
+        self._group.append(obj.group if isinstance(obj, Group) else obj)
+
+    @property
+    def hidden(self) -> bool:
+        return self._group.hidden
+
+    @hidden.setter
+    def hidden(self, value: bool) -> None:
+        self._group.hidden = value
+
+    @property
+    def group(self) -> displayio.Group:
+        return self._group
+
+class Font:
+
+    def __init__(self, path: str, min_character: str = " ", max_character: str = "~", transparent_index: int = 0):
+        self.texture, self.palette = adafruit_imageload.load(path)
+        self.palette.make_transparent(transparent_index)
+        self._min = ord(min_character)
+        self._size = ord(max_character) - ord(min_character) + 1
+        self._tile_width = self.texture.width // self._size
+    
+    @property
+    def tile_width(self) -> int:
+        return self._tile_width
+
+    @property
+    def tile_height(self) -> int:
+        return self.texture.height
+    
+    def index(self, character: str) -> int:
+        return max(ord(character[0]) - self._min, 0) if character else 0
+
+class Text(Group):
+
+    def __init__(self, font: Font, text: str, width: int = None, height: int = None, pixel_shader: displayio.Palette = None, letter_spacing: int = 1, line_spacing: int = 1, position: tuple = None, scale: int = 1):
+        # NOTE: letter_spacing/line_spacing?
+
+        super().__init__(position, scale)
+        self._font = font
+
+        if width is None:
+            width = max(len(x) for x in text.split("\n"))
+        width = max(width, 1)
+
+        if height is None:
+            height = len(text.split("\n"))
+        height = max(height, 1)
+
+        self._tg = displayio.TileGrid(
+            bitmap=font.texture, pixel_shader=font.palette,
+            width=width, height=height,
+            tile_width=font.tile_width, tile_height=font.tile_height,
+        )
+        self._tg.x = -self._tg.width * self._tg.tile_width // 2
+        self._tg.y = -self._tg.height * self._tg.tile_height // 2
+        self.pixel_shader = pixel_shader
+        self._group.append(self._tg)
+
+        self.text = text
+
+    @property
+    def text(self) -> str:
+        return self._text
+    
+    @text.setter
+    def text(self, value: str) -> None:
+        self._text = value
+        i = 0
+        for y in range(self._tg.height):
+            newline = False
+            for x in range(self._tg.width):
+                if i < len(self._text) and self._text[i] == "\n":
+                    newline = True
+                    i += 1
+                if newline or i >= len(self._text):
+                    self._tg[x, y] = self._font.index(" ")
+                else:
+                    self._tg[x, y] = self._font.index(self._text[i])
+                    i += 1
+
+    @property
+    def pixel_shader(self) -> displayio.Palette:
+        return self._tg.pixel_shader
+
+    @pixel_shader.setter
+    def pixel_shader(self, value: displayio.Palette) -> None:
+        if value is None:
+            self._tg.pixel_shader = self._font.palette
+        elif len(value) != len(self._font.palette):
+            palette = displayio.Palette(len(self._font.palette))
+            for i in range(len(self._font.palette)):
+                if self._font.palette.is_transparent(i):
+                    palette.make_transparent(i)
+                else:
+                    palette[i] = value[0]
+            self._tg.pixel_shader = palette
+
+class Sprite(Group):
+
+    def __init__(self, texture: displayio.Bitmap, pixel_shader: displayio.Palette, position: tuple = None, fps: float = 0, frame_count_x: int = 1, frame_count_y: int = 1, scale: int = 1, playing: bool = False):
+        super().__init__(position, scale)
+
+        self._tg = displayio.TileGrid(
+            bitmap=texture, pixel_shader=pixel_shader,
+            width=1, height=1,
+            tile_width=texture.width//frame_count_x,
+            tile_height=texture.height//frame_count_y,
+        )
+        self._tg.x = -self._tg.tile_width//2
+        self._tg.y = -self._tg.tile_height//2
+        self._group.append(self._tg)
+
+        self._frame_count_x = frame_count_x
+        self._frame_count_y = frame_count_y
+
+        self.playing = playing
+        self.loop = False
+        self.fps = fps
+
+    @property
+    def texture(self) -> displayio.Bitmap:
+        return self._tg.bitmap
+
+    @texture.setter
+    def texture(self, value: displayio.Bitmap) -> None:
+        self._tg.bitmap = value
+
+    @property
+    def pixel_shader(self) -> displayio.Palette:
+        return self._tg.pixel_shader
+
+    @texture.setter
+    def pixel_shader(self, value: displayio.Palette) -> None:
+        self._tg.pixel_shader = value
+
+    @property
+    def frame_current_x(self) -> int:
+        return self._tg[0] % self._frame_count_x
+    
+    @frame_current_x.setter
+    def frame_current_x(self, value: int) -> None:
+        self._tg[0] = (self.frame_current_y * self._frame_count_x) + (value % self._frame_count_x)
+
+    @property
+    def frame_current_y(self) -> int:
+        return self._tg[0] // self._frame_count_y
+    
+    @frame_current_y.setter
+    def frame_current_y(self, value: int) -> None:
+        self._tg[0] = (value % self._frame_count_y) * self._frame_count_x + self.frame_current_x
+    
+    @property
+    def fps(self) -> float:
+        return self._fps
+    
+    @fps.setter
+    def fps(self, value: float) -> None:
+        self._fps = min(value, 0)
+        self._frame_duration = 1 / value if value > 0 else None
+        self._frame_time = 0
+
+    def tick(self, dt: float) -> None:
+        if self.playing:
+            self._frame_time += dt
+            if self._frame_time >= self._frame_duration:
+                self.frame_current_x += 1
+                self._frame_time = 0
+                if not self.loop and self.frame_current_x == self._frame_count_x - 1:
+                    self.playing = False
+
+class Rectangle(Group):
+
+    def __init__(self, pixel_shader: displayio.Palette, width: int, height: int, outline: bool = False, position: tuple = None, scale: int = 1):
+        super().__init__(position, scale)
+        self._outline = outline
+        for i in range(4 if outline else 1):  # NOTE: Maybe implement `adafruit_display_shapes`?
+            self._group.append(vectorio.Rectangle(pixel_shader=pixel_shader, width=1, height=1))
+        self.width, self.height = width, height
+
+    @property
+    def width(self) -> int:
+        return self._width
+    
+    @width.setter
+    def width(self, value: int) -> None:
+        self._width = value
+        self._group[0].width = value
+        self._group[0].x = -value//2
+        if self._outline:
+            self._group[1].width = value
+            self._group[1].x = -value//2
+            self._group[2].x = value//2 - 1
+            self._group[3].x = value//2 - 1
+        
+    @property
+    def height(self) -> int:
+        return self._height
+    
+    @height.setter
+    def height(self, value: int) -> None:
+        self._height = value
+        self._group[0].y = -value//2
+        if self._outline:
+            self._group[1].y = value//2 - 1
+            self._group[2].height = value
+            self._group[2].y = -value//2
+            self._group[3].height = value
+            self._group[3].y = -value//2
+        else:
+            self._group[0].height = value
+
+# loading text
+FONT = Font("fonts/outrunner_outline.bmp")
+loading_txt = Text(FONT, "Loading...", position=(0, display.height - FONT.tile_height))
+root_group.append(loading_txt.group)
+display.refresh()
+
+# get save data
+SAVE_FILE = "/saves/puzzleattack.json"
+save_data = {}
+try:
+    with open(SAVE_FILE, "r") as f:
+        try:
+            data = json.load(f)
+        except (ValueError, AttributeError):
+            pass
+        else:
+            if isinstance(data, dict):
+                save_data = {}
+except OSError:
+    pass
+
+# setup audio, buttons, and neopixels
+peripherals = adafruit_fruitjam.peripherals.Peripherals(
+    safe_volume_limit=(config.audio_volume_override_danger if config is not None else 0.75),
+    sample_rate=11025,
+)
+
+# user-defined audio output and volume
+peripherals.audio_output = config.audio_output if config is not None else "headphone"
+peripherals.volume = config.audio_volume if config is not None else 0.7
+
+mixer = Mixer(
+    voice_count=1,
+    sample_rate=peripherals.dac.sample_rate,
+    channel_count=1,
+    bits_per_sample=8,
+    samples_signed=False,
+    buffer_size=8192,
+)
+peripherals.audio.play(mixer)
+
+# constants and files
 
 CHEAT_MODE = const(True)
 
-engine_save.set_location("save.data")
+sfxWin = WaveFile("sfx/win.wav")
+sfxLose = WaveFile("sfx/lose.wav")
+sfxFall = WaveFile("sfx/fall.wav")
+sfxSwap = WaveFile("sfx/swap.wav")
+sfxNav = WaveFile("sfx/nav.wav")
+sfxCursor = WaveFile("sfx/cursor.wav")
+sfxPops = [WaveFile("sfx/pop"+str(i+1)+".wav") for i in range(8)]
 
-engine.fps_limit(30)
-
-font = FontResource("fonts/outrunner_outline.bmp")
-
-sfxWin = WaveSoundResource("sfx/win.wav")
-sfxLose = WaveSoundResource("sfx/lose.wav")
-sfxFall = WaveSoundResource("sfx/fall.wav")
-sfxSwap = WaveSoundResource("sfx/swap.wav")
-sfxNav = WaveSoundResource("sfx/nav.wav")
-sfxCursor = WaveSoundResource("sfx/cursor.wav")
-sfxPops = [WaveSoundResource("sfx/pop"+str(i+1)+".wav") for i in range(8)]
-
-texLogo = TextureResource("bitmaps/logo.bmp")
-texBG = TextureResource("bitmaps/bg.bmp")
-texBlocks = TextureResource("bitmaps/blocks.bmp")
-texCursor = TextureResource("bitmaps/cursor.bmp")
-texCheckmark = TextureResource("bitmaps/checkmark.bmp")
-texLock = TextureResource("bitmaps/lock.bmp")
-TRANSPARENT_COLOR = const(0xf81f)
+texLogo, palLogo = adafruit_imageload.load("bitmaps/logo.bmp")
+palLogo.make_transparent(103)
+texBG, palBG = adafruit_imageload.load("bitmaps/bg.bmp")
+texBlocks, palBlocks = adafruit_imageload.load("bitmaps/blocks.bmp")
+palBlocks.make_transparent(11)
+texCursor, palCursor = adafruit_imageload.load("bitmaps/cursor.bmp")
+palCursor.make_transparent(1)
+texCheckmark, palCheckmark = adafruit_imageload.load("bitmaps/checkmark.bmp")
+palCheckmark.make_transparent(0)
+texLock, palLock = adafruit_imageload.load("bitmaps/lock.bmp")
+palLock.make_transparent(28)
 
 MODE_NORMAL = const(0)
 MODE_EXTRA = const(1)
@@ -74,34 +579,42 @@ SM_MOVE_OVER = const(11)
 SM_LEVEL_LOST = const(12)
 SM_LEVEL_WIN = const(13)
 
-class Block(Sprite2DNode):
-    def __init__(self, id):
-        super().__init__(self)
-        self.texture = texBlocks
-        self.transparent_color = Color(TRANSPARENT_COLOR)
-        self.frame_count_x = 7
-        self.frame_count_y = 6
+def solid_palette(color: int) -> displayio.Palette:
+    pal = displayio.Palette(1)
+    pal[0] = color
+    return pal
+
+BLACK = solid_palette(0x000000)
+WHITE = solid_palette(0xffffff)
+LIGHTGREY = solid_palette(0xd6d6d6)
+DARKGREY = solid_palette(0x7b7b7b)
+
+class Block(Sprite):
+    def __init__(self, id: int):
+        super().__init__(
+            texBlocks, palBlocks,
+            frame_count_x=7, frame_count_y=6,
+        )
         self.frame_current_x = BLOCK_STATE_NORMAL
         self.frame_current_y = id
         self.loop = False
         self.playing = False
-        self.layer = 1
         self.tween = Tween()
         self.normal = True
         self.falling = False
         self.fallingY = None
     def tweenMove(self, position, duration):
-        self.tween.start(self, "position", self.position, position, duration, ONE_SHOT, EASE_ELAST_IN_OUT)
+        self.tween.start(self, "position", self.position, position, duration, EASE_ELAST_IN_OUT)
     def updateFalling(self):
         prevFalling = self.falling
         if self.fallingY is not None and self.normal:
-            if not self.tween.finished and self.position.y > self.fallingY:
+            if not self.tween.finished and self.y > self.fallingY:
                 self.falling = True
             elif self.tween.finished:
                 self.falling = False
         else:
             self.falling = False
-        self.fallingY = self.position.y
+        self.fallingY = self.y
         if self.normal:
             if self.falling:
                 self.frame_current_x = BLOCK_STATE_FALLING
@@ -110,16 +623,15 @@ class Block(Sprite2DNode):
             elif self.frame_current_x == BLOCK_STATE_SQUISH:
                 self.frame_current_x = BLOCK_STATE_NORMAL
 
-class Cursor(Sprite2DNode):
+class Cursor(Sprite):
     def __init__(self):
-        super().__init__(self)
-        self.texture = texCursor
-        self.transparent_color = Color(TRANSPARENT_COLOR)
-        self.frame_count_y = 2
+        super().__init__(
+            texCursor, palCursor,
+            frame_count_x=1, frame_count_y=2,
+        )
         self.loop = True
         self.playing = True
         self.fps = 4
-        self.layer = 2
 
 BLOCK_COLS = const(6)
 BLOCK_ROWS = const(12)
@@ -131,88 +643,102 @@ stagePrefix = ""
 blocks = [None for _ in range(BLOCK_COLS*BLOCK_ROWS)]
 moves = 0
 
-cam = CameraNode(Vector3(64,64,0))
-sprBG = Sprite2DNode(Vector2(64,64),texBG,Color(TRANSPARENT_COLOR),0,1,1,0,Vector2(2,2))
-sprLogo = Sprite2DNode(Vector2(64,-64),texLogo,Color(TRANSPARENT_COLOR),0,1,1,0)
+sprBG = Sprite(texBG, palBG, position=(64, 64), scale=2)
+bg_group.append(sprBG.group)
+
+sprLogo = Sprite(texLogo, palLogo, position=(64, -64))
+ui_group.append(sprLogo.group)
 
 menuBlocks = [Block(id) for id in range(6)]
+for x in menuBlocks:
+    sprite_group.append(x.group)
 
-rectMenuGameMode = Rectangle2DNode(Vector2(64,64),120,80,engine_draw.black,1,False,0,Vector2(1,1),100)
-rectMenuGameModeBorder = Rectangle2DNode(Vector2(0,0),118,78,engine_draw.white,1,True,0,Vector2(1,1),100)
+rectMenuGameMode = Rectangle(BLACK, 120, 80, position=(64, 64), outline=True)
+ui_group.append(rectMenuGameMode.group)
+rectMenuGameModeBorder = Rectangle(WHITE, 118, 78, outline=True)
+rectMenuGameMode.append(rectMenuGameModeBorder)
 txtMenuGameModeOptions = [
-    Text2DNode(Vector2(0,-25),font,"NORMAL",0,Vector2(2,2),1,1,1,engine_draw.white,100),
-    Text2DNode(Vector2(0,0),font,"EXTRA",0,Vector2(2,2),1,1,1,engine_draw.white,100),
-    Text2DNode(Vector2(0,25),font,"CUSTOM",0,Vector2(2,2),1,1,1,engine_draw.white,100),
+    Text(FONT, "NORMAL", position=(0,-25), scale=2),
+    Text(FONT, "EXTRA", scale=2),
+    Text(FONT, "CUSTOM", position=(0, 25), scale=2),
 ]
-rectMenuGameMode.add_child(rectMenuGameModeBorder)
 for txt in txtMenuGameModeOptions:
-    rectMenuGameMode.add_child(txt)
-    
-rectToast = Rectangle2DNode(Vector2(64,64),100,60,engine_draw.lightgrey,1,False,0,Vector2(1,1),110)
-txtToast = Text2DNode(Vector2(0,0),font,"",0,Vector2(1,1),1,1,1,engine_draw.black,110)
-rectToast.add_child(txtToast)
+    rectMenuGameMode.append(txt)
 
-rectMenuStage = Rectangle2DNode(Vector2(64,72),100,110,engine_draw.black,1,False,0,Vector2(1,1),100)
-rectMenuStageBorder = Rectangle2DNode(Vector2(0,0),98,108,engine_draw.white,1,True,0,Vector2(1,1),100)
-txtMenuStageTitle = Text2DNode(Vector2(64,9),font,"Stage 1",0,Vector2(1,1),1,1,1,engine_draw.white,100)
+rectToast = Rectangle(LIGHTGREY, 100, 60, position=(64, 64))
+ui_group.append(rectToast.group)
+txtToast = Text(FONT, "", width=16, height=4, pixel_shader=BLACK)
+rectToast.append(txtToast)
+
+rectMenuStage = Rectangle(BLACK, 100, 110, position=(64, 72))
+ui_group.append(rectMenuStage.group)
+rectMenuStageBorder = Rectangle(WHITE, 98, 108, outline=True)
+rectMenuStage.append(rectMenuStageBorder)
+txtMenuStageTitle = Text(FONT, "Stage 1", position=(64, 9))
+ui_group.append(txtMenuStageTitle.group)
 txtMenuStageLevels = []
 sprMenuStageClears = []
 i = 0
 for col in range(2):
     for row in range(5):
-        txt = Text2DNode(Vector2(col*48-34,row*20-40),font,str(i+1),0,Vector2(1,1),1,1,1,engine_draw.white,100)
+        txt = Text(FONT, str(i+1), position=(col*48-34,row*20-40))
         txtMenuStageLevels.append(txt)
-        rectMenuStage.add_child(txt)
-        spr = Sprite2DNode(Vector2(col*48-14,row*20-40),texCheckmark,Color(TRANSPARENT_COLOR),0,2,1,0,Vector2(1,1),1,False,False,100)
-        spr.loop = False
-        spr.frame_current_x = 0
+        rectMenuStage.append(txt)
+        spr = Sprite(texCheckmark, palCheckmark, position=(col*48-14,row*20-40), frame_count_x=2)
         sprMenuStageClears.append(spr)
-        rectMenuStage.add_child(spr)
+        rectMenuStage.append(spr)
         i += 1
-rectMenuStageLock = Rectangle2DNode(Vector2(0,0),96,106,engine_draw.darkgrey,1,False,0,Vector2(1,1),100)
-sprMenuStageLock = Sprite2DNode(Vector2(0,0),texLock,Color(TRANSPARENT_COLOR),0,1,1,0,Vector2(1,1),1,False,False,100)
-rectMenuStage.add_child(rectMenuStageBorder)
-rectMenuStage.add_child(rectMenuStageLock)
-rectMenuStage.add_child(sprMenuStageLock)
+rectMenuStageLock = Rectangle(DARKGREY, 96, 106)
+rectMenuStage.append(rectMenuStageLock)
+sprMenuStageLock = Sprite(texLock, palLock)
+rectMenuStage.append(sprMenuStageLock)
 
-rectBorder = Rectangle2DNode(Vector2(BLOCKS_START_X-2+BLOCK_COLS*5+2,BLOCKS_START_Y-2+BLOCK_ROWS*5+2), BLOCK_COLS*10+3, BLOCK_ROWS*10+3, engine_draw.white, 1.0, True)
+rectBorder = Rectangle(WHITE, BLOCK_COLS*10+3, BLOCK_ROWS*10+3, position=(BLOCKS_START_X-2+BLOCK_COLS*5+2, BLOCKS_START_Y-2+BLOCK_ROWS*5+2), outline=True)
+bg_group.append(rectBorder.group)
 cursor = Cursor()
-lblLevelTitle = Text2DNode(Vector2(100,10),font,"LEVEL",0,Vector2(1,1),1,1,1,engine_draw.white)
-lblLevel = Text2DNode(Vector2(100,25),font,"---",0,Vector2(1,1),1,1,1,engine_draw.white)
-lblMovesTitle = Text2DNode(Vector2(100,80),font,"MOVES",0,Vector2(1,1),1,1,1,engine_draw.white)
-lblMoves = Text2DNode(Vector2(100,105),font,"0",0,Vector2(3,3),1,1,1,engine_draw.white)
-lblOverlay = Text2DNode(Vector2(BLOCKS_START_X+BLOCK_COLS*5,BLOCKS_START_Y+BLOCK_ROWS*5),font,"",0,Vector2(1,1),1,1,1,engine_draw.white,3)
-sprCheckmark = Sprite2DNode(Vector2(100,41),texCheckmark,Color(TRANSPARENT_COLOR),0,2,1,0,Vector2(1,1),1,False,False)
+ui_group.append(cursor.group)
+lblLevelTitle = Text(FONT, "LEVEL", position=(100, 10))
+ui_group.append(lblLevelTitle.group)
+lblLevel = Text(FONT, "---", position=(100, 25))
+ui_group.append(lblLevel.group)
+lblMovesTitle = Text(FONT, "MOVES", position=(100, 80))
+ui_group.append(lblMovesTitle.group)
+lblMoves = Text(FONT, "0", position=(100, 105), scale=3)
+ui_group.append(lblMoves.group)
+lblOverlay = Text(FONT, "", position=(BLOCKS_START_X+BLOCK_COLS*5, BLOCKS_START_Y+BLOCK_ROWS*5))
+ui_group.append(lblOverlay.group)
+sprCheckmark = Sprite(texCheckmark, palCheckmark, position=(100, 41), frame_count_x=2)
+ui_group.append(sprCheckmark.group)
 
 for block in menuBlocks:
-    block.opacity = 0
+    block.hidden = True
 
-rectMenuGameMode.opacity = 0
-rectMenuGameModeBorder.opacity = 0
-txtMenuGameModeOptions[0].opacity = 0
-txtMenuGameModeOptions[1].opacity = 0
-txtMenuGameModeOptions[2].opacity = 0
+rectMenuGameMode.hidden = True
+rectMenuGameModeBorder.hidden = True
+txtMenuGameModeOptions[0].hidden = True
+txtMenuGameModeOptions[1].hidden = True
+txtMenuGameModeOptions[2].hidden = True
 
-rectMenuStage.opacity = 0
-rectMenuStageBorder.opacity = 0
-txtMenuStageTitle.opacity = 0
-rectMenuStageLock.opacity = 0
-sprMenuStageLock.opacity = 0
+rectMenuStage.hidden = True
+rectMenuStageBorder.hidden = True
+txtMenuStageTitle.hidden = True
+rectMenuStageLock.hidden = True
+sprMenuStageLock.hidden = True
 for txt in txtMenuStageLevels:
-    txt.opacity = 0
+    txt.hidden = True
 for spr in sprMenuStageClears:
-    spr.opacity = 0
+    spr.hidden = True
 
-rectToast.opacity = 0
-txtToast.opacity = 0
+rectToast.hidden = True
+txtToast.hidden = True
 
-rectBorder.opacity = 0
-cursor.opacity = 0
-lblLevelTitle.opacity = 0
-lblLevel.opacity = 0
-lblMovesTitle.opacity = 0
-lblMoves.opacity = 0
-sprCheckmark.opacity = 0
+rectBorder.hidden = True
+cursor.hidden = True
+lblLevelTitle.hidden = True
+lblLevel.hidden = True
+lblMovesTitle.hidden = True
+lblMoves.hidden = True
+sprCheckmark.hidden = True
 
 def loadLevel(stage, level):
     global stageName, stagePrefix, blocks, moves
@@ -227,8 +753,9 @@ def loadLevel(stage, level):
     for i in range(len(blocks)):
         if blocks[i] is not None:
             block = blocks[i]
-            block.mark_destroy()
             blocks[i] = None
+            sprite_group.remove(block.group)
+            del block
             
     moves = levelData[len(levelData)-1]
             
@@ -257,15 +784,16 @@ def loadLevel(stage, level):
                 raise Exception("Unknown symbol! "+symbol)
             if id is not None:
                 block = Block(id)
+                sprite_group.append(block.group)
                 height = 130 + (BLOCK_ROWS-row)*10
-                block.position = Vector2(BLOCKS_START_X+col*10+5,BLOCKS_START_Y+row*10+5-height)
-                block.tweenMove(Vector2(BLOCKS_START_X+col*10+5,BLOCKS_START_Y+row*10+5),height//10*50)
+                block.position = (BLOCKS_START_X+col*10+5,BLOCKS_START_Y+row*10+5-height)
+                block.tweenMove((BLOCKS_START_X+col*10+5,BLOCKS_START_Y+row*10+5),height//10*50)
                 blocks[row*BLOCK_COLS+col] = block
                 
     lblLevel.text = stagePrefix+"-"+str(level+1)
     lblMoves.text = str(moves)
-    sprBG.texture = TextureResource(stage[0:-5]+".bmp")
-    sprCheckmark.frame_current_x = engine_save.load(stage,bytearray(10))[level]
+    sprBG.texture, sprBG.pixel_shader = adafruit_imageload.load(stage[0:-5]+".bmp")
+    sprCheckmark.frame_current_x = save_data.get(stage, bytearray(10))[level]
 
 def checkFalling(blocks):
     ret = []
@@ -282,7 +810,7 @@ def checkFalling(blocks):
 
 def startFallAnim(blocksFalling):
     for col, row, block in blocksFalling:
-        block.tweenMove(Vector2(block.position.x,block.position.y+10),200)
+        block.tweenMove((block.x,block.y+10),200)
         i = row*BLOCK_COLS+col
         blocks[i], blocks[i+BLOCK_COLS] = blocks[i+BLOCK_COLS], blocks[i]
 
@@ -337,7 +865,7 @@ def checkExtraUnlock():
     global extraUnlockChecked, extraUnlock
     unlocked = True
     for stage in standardStages:
-        clears = engine_save.load(stage,bytearray(10))
+        clears = save_data.get(stage, bytearray(10))
         for i in range(10):
             if clears[i] == 0:
                 unlocked = False
@@ -379,13 +907,8 @@ blocksMatching = []
 popLevel = 0
 modeSelect = 0
 
-rumbleFrames = 0
-def rumble(frames, intensity):
-    global rumbleFrames
-    engine_io.rumble(intensity)
-    rumbleFrames = frames
-
 def toast(texts):
+    global frame
     width = 0
     for text in texts:
         width = max(width,len(text)*9+10)
@@ -395,20 +918,18 @@ def toast(texts):
     for i in range(1,len(texts)):
         text += "\n"+texts[i]
     
-    rectToast.opacity = 1
+    rectToast.hidden = False
     rectToast.width = width
     rectToast.height = height
-    txtToast.opacity = 1
+    txtToast.hidden = False
     txtToast.text = text
     frame = 0
     while True:
-        if not engine.tick():
-            continue
-        frame += 1
-        if frame > 10 and engine_io.A.is_just_pressed:
+        tick()
+        if frame > 10 and is_just_pressed(BUTTON_A):
             break
-    rectToast.opacity = 0
-    txtToast.opacity = 0
+    rectToast.hidden = True
+    txtToast.hidden = True
 
 state = SM_INTRO
 frame = 0
@@ -416,90 +937,100 @@ stateLoad = True
 stateUnload = False
 def setState(next):
     global state, frame, stateUnload
+    print("state", next)
     state = next
     frame = 0
     stateUnload = True
 
+for x in root_group:
+    x.hidden = False
+loading_txt.hidden = True
+display.refresh()
+
+previous_pressed_buttons = None
 while True:
-    if not engine.tick():
-        continue
-    frame += 1
+    tick()
+
+    # mouse input
+    if mouse is not None:
+        # TODO: Handle mouse position and click
+        previous_pressed_buttons = mouse.pressed_btns
+
+    # handle escape
+    if is_just_pressed(BUTTON_HOME):
+        break
+
     stateLoad = (frame == 1)
     stateUnload = False
-    
-    if rumbleFrames > 0:
-        rumbleFrames -= 1
-        if rumbleFrames == 0:
-            engine_io.rumble(0)
         
     if state == SM_INTRO:
         if stateLoad:
-            sprLogo.opacity = 1
+            sprLogo.hidden = False
         
         if frame <= 16:
-            sprLogo.position = Vector2(64,60-(1<<(16-frame)))
+            sprLogo.position = (64,60-(1<<(16-frame)))
         else:
             setState(SM_PRESS_START)
         
     elif state == SM_PRESS_START:
         if stateLoad:
-            sprLogo.opacity = 1
+            sprLogo.hidden = False
             for block in menuBlocks:
-                block.opacity = 1
+                block.hidden = False
                 
         for i in range(len(menuBlocks)):
             r = math.pi * 2 * i/len(menuBlocks) + frame * 0.08
-            menuBlocks[i].position = Vector2(64+55*math.cos(r),64+55*math.sin(r))
-        if engine_io.A.is_just_pressed:
-            engine_audio.play(sfxNav,0,False)
+            menuBlocks[i].position = (64+55*math.cos(r),64+55*math.sin(r))
+        if is_just_pressed(BUTTON_A):
+            mixer.play(sfxNav)
             rumble(3,0.4)
             modeSelect = MODE_NORMAL
             setState(SM_MODE_SELECT)
             
         if stateUnload:
-            sprLogo.opacity = 0
+            sprLogo.hidden = True
             for block in menuBlocks:
-                block.opacity = 0
+                block.hidden = True
         
     elif state == SM_MODE_SELECT:
         if stateLoad:
-            rectMenuGameMode.opacity = 1
-            rectMenuGameModeBorder.opacity = 1
-            txtMenuGameModeOptions[0].opacity = 1
-            txtMenuGameModeOptions[0].color = engine_draw.white
-            txtMenuGameModeOptions[1].opacity = 1
-            txtMenuGameModeOptions[1].color = engine_draw.darkgrey
-            txtMenuGameModeOptions[2].opacity = 1
-            txtMenuGameModeOptions[2].color = engine_draw.darkgrey
+            rectMenuGameMode.hidden = False
+            rectMenuGameModeBorder.hidden = False
+            txtMenuGameModeOptions[0].hidden = False
+            txtMenuGameModeOptions[0].pixel_shader = WHITE
+            txtMenuGameModeOptions[1].hidden = False
+            txtMenuGameModeOptions[1].pixel_shader = DARKGREY
+            txtMenuGameModeOptions[2].hidden = False
+            txtMenuGameModeOptions[2].pixel_shader = DARKGREY
             checkExtraUnlock()
         
         for i in range(len(menuBlocks)):
             r = math.pi * 2 * i/len(menuBlocks) + frame * 0.08
-            menuBlocks[i].position = Vector2(64+55*math.cos(r),64+55*math.sin(r))
-        if engine_io.DOWN.is_just_pressed:
+            menuBlocks[i].position = (64+55*math.cos(r),64+55*math.sin(r))
+        if is_just_pressed(BUTTON_DOWN, BUTTON_JOYSTICK_DOWN):
             modeSelect = (modeSelect + 1) % 3
-        if engine_io.UP.is_just_pressed:
+        if is_just_pressed(BUTTON_UP, BUTTON_JOYSTICK_UP):
             modeSelect = (modeSelect + 2) % 3
-        if engine_io.A.is_just_pressed:
+        if is_just_pressed(BUTTON_A):
             if modeSelect == MODE_EXTRA and not extraUnlock:
                 toast(["Beat","Normal Mode","to unlock","Extra Mode!"])
             elif modeSelect == MODE_CUSTOM and len(customStages) == 0:
                 toast(["No Custom","Mode stages","are found!"])
             else:
-                engine_audio.play(sfxNav,0,False)
+                mixer.play(sfxNav)
                 rumble(3,0.4)
                 setState(SM_STAGE_SELECT)
-        if engine_io.B.is_just_pressed:
+        if is_just_pressed(BUTTON_B):
             setState(SM_PRESS_START)
         for i in range(3):
-            txtMenuGameModeOptions[i].color = engine_draw.white if (i == modeSelect) else engine_draw.darkgrey
+            txtMenuGameModeOptions[i].pixel_shader = WHITE if (i == modeSelect) else DARKGREY
         
         if stateUnload:
-            rectMenuGameMode.opacity = 0
-            rectMenuGameModeBorder.opacity = 0
-            txtMenuGameModeOptions[0].opacity = 0
-            txtMenuGameModeOptions[1].opacity = 0
-            txtMenuGameModeOptions[2].opacity = 0
+            rectMenuGameMode.hidden = True
+            rectMenuGameModeBorder.hidden = True
+            txtMenuGameModeOptions[0].hidden = True
+            txtMenuGameModeOptions[1].hidden = True
+            txtMenuGameModeOptions[2].hidden = True
         
     elif state == SM_STAGE_SELECT:
         if stateLoad:
@@ -510,7 +1041,7 @@ while True:
             elif modeSelect == MODE_CUSTOM:
                 stages = customStages
             levelCounts = loadLevelCounts(stages)              
-            clears = [engine_save.load(stages[i],bytearray(levelCounts[i])) for i in range(len(stages))]
+            clears = [save_data.get(stages[i], bytearray(levelCounts[i])) for i in range(len(stages))]
             locks = [False]
             for i in range(1,len(clears)):
                 clear = clears[i-1]
@@ -530,81 +1061,81 @@ while True:
                         stage = i-1
                         break
             titles = loadTitles(stages)
-            rectMenuStage.opacity = 1
-            rectMenuStageBorder.opacity = 1
-            txtMenuStageTitle.opacity = 1
-            rectMenuStageLock.opacity = 0.75 if locks[stage] else 0
-            sprMenuStageLock.opacity = 1 if locks[stage] else 0
+            rectMenuStage.hidden = False
+            rectMenuStageBorder.hidden = False
+            txtMenuStageTitle.hidden = False
+            rectMenuStageLock.hidden = not locks[stage]
+            sprMenuStageLock.hidden = not locks[stage]
             txtMenuStageTitle.text = titles[stage]
             for i in range(10):
                 txt = txtMenuStageLevels[i]
                 spr = sprMenuStageClears[i]
                 if i < levelCounts[stage]:
-                    txt.opacity = 1
+                    txt.hidden = False
                     spr.frame_current_x = clears[stage][i]
-                    spr.opacity = 1
+                    spr.hidden = False
                 else:
-                    txt.opacity = 0
-                    spr.opacity = 0
+                    txt.hidden = True
+                    spr.hidden = True
                 
         
         updateStage = False
-        if engine_io.LEFT.is_just_pressed and stage > 0:
+        if is_just_pressed(BUTTON_LEFT, BUTTON_JOYSTICK_LEFT) and stage > 0:
             stage -= 1
             updateStage = True
-        if engine_io.RIGHT.is_just_pressed and stage < len(stages)-1:
+        if is_just_pressed(BUTTON_RIGHT, BUTTON_JOYSTICK_RIGHT) and stage < len(stages)-1:
             stage += 1
             updateStage = True
             
-        if engine_io.A.is_just_pressed and not locks[stage]:
+        if is_just_pressed(BUTTON_A) and not locks[stage]:
             level = 0
             for i in range(len(clears[stage])):
                 if not clears[stage][i]:
                     level = i
                     break
-            engine_audio.play(sfxNav,0,False)
+            mixer.play(sfxNav)
             rumble(3,0.4)
             setState(SM_LEVEL_LOADING)
             
-        if engine_io.B.is_just_pressed:
+        if is_just_pressed(BUTTON_B):
             setState(SM_MODE_SELECT)
             
         if updateStage:
             updateStage = False
-            rectMenuStageLock.opacity = 0.75 if locks[stage] else 0
-            sprMenuStageLock.opacity = 1 if locks[stage] else 0
+            rectMenuStageLock.hidden = not locks[stage]
+            sprMenuStageLock.hidden = not locks[stage]
             txtMenuStageTitle.text = titles[stage]
             for i in range(10):
                 txt = txtMenuStageLevels[i]
                 spr = sprMenuStageClears[i]
                 if i < levelCounts[stage]:
-                    txt.opacity = 1
+                    txt.hidden = False
                     spr.frame_current_x = clears[stage][i]
-                    spr.opacity = 1
+                    spr.hidden = False
                 else:
-                    txt.opacity = 0
-                    spr.opacity = 0
+                    txt.hidden = True
+                    spr.hidden = True
                 
         if stateUnload:
-            rectMenuStage.opacity = 0
-            rectMenuStageBorder.opacity = 0
-            txtMenuStageTitle.opacity = 0
-            rectMenuStageLock.opacity = 0
-            sprMenuStageLock.opacity = 0
+            rectMenuStage.hidden = True
+            rectMenuStageBorder.hidden = True
+            txtMenuStageTitle.hidden = True
+            rectMenuStageLock.hidden = True
+            sprMenuStageLock.hidden = True
             for txt in txtMenuStageLevels:
-                txt.opacity = 0
+                txt.hidden = True
             for spr in sprMenuStageClears:
-                spr.opacity = 0
+                spr.hidden = True
     
     elif state == SM_LEVEL_LOADING:
         if stateLoad:
             loadLevel(stages[stage],level)
-            rectBorder.opacity = 1
-            lblLevelTitle.opacity = 1
-            lblLevel.opacity = 1
-            lblMovesTitle.opacity = 1
-            lblMoves.opacity = 1
-            sprCheckmark.opacity = 1
+            rectBorder.hidden = False
+            lblLevelTitle.hidden = False
+            lblLevel.hidden = False
+            lblMovesTitle.hidden = False
+            lblMoves.hidden = False
+            sprCheckmark.hidden = False
         
         falling = False
         for block in blocks:
@@ -613,8 +1144,8 @@ while True:
                 break
         if not falling:
             cursorCol, cursorRow = BLOCK_COLS//2-1, BLOCK_ROWS//2
-            cursor.position = Vector2(BLOCKS_START_X+cursorCol*10+10,BLOCKS_START_Y+cursorRow*10+5)
-            cursor.opacity = 1
+            cursor.position = (BLOCKS_START_X+cursorCol*10+10,BLOCKS_START_Y+cursorRow*10+5)
+            cursor.hidden = False
             setState(SM_CURSOR_SELECT)
             
     elif state == SM_LEVEL_UNLOADING:
@@ -623,54 +1154,55 @@ while True:
             for i in range(len(blocks)):
                 block = blocks[i]
                 if block is not None:
-                    block.mark_destroy()
                     blocks[i] = None
-            rectBorder.opacity = 0
-            lblLevelTitle.opacity = 0
-            lblLevel.opacity = 0
-            lblMovesTitle.opacity = 0
-            lblMoves.opacity = 0
-            sprCheckmark.opacity = 0
-            cursor.opacity = 0
-            lblOverlay.opacity = 0
+                    sprite_group.remove(block.group)
+                    del block
+            rectBorder.hidden = True
+            lblLevelTitle.hidden = True
+            lblLevel.hidden = True
+            lblMovesTitle.hidden = True
+            lblMoves.hidden = True
+            sprCheckmark.hidden = True
+            cursor.hidden = True
+            lblOverlay.hidden = True
             sprBG.texture = texBG
     
     elif state == SM_CURSOR_SELECT:
-        if engine_io.LEFT.is_just_pressed and cursorCol > 0:
+        if is_just_pressed(BUTTON_LEFT, BUTTON_JOYSTICK_LEFT) and cursorCol > 0:
             cursorCol -= 1
-        if engine_io.RIGHT.is_just_pressed and cursorCol < BLOCK_COLS-2:
+        if is_just_pressed(BUTTON_RIGHT, BUTTON_JOYSTICK_RIGHT) and cursorCol < BLOCK_COLS-2:
             cursorCol += 1
-        if engine_io.UP.is_just_pressed and cursorRow > 0:
+        if is_just_pressed(BUTTON_UP, BUTTON_JOYSTICK_UP) and cursorRow > 0:
             cursorRow -= 1
-        if engine_io.DOWN.is_just_pressed and cursorRow < BLOCK_ROWS-1:
+        if is_just_pressed(BUTTON_DOWN, BUTTON_JOYSTICK_DOWN) and cursorRow < BLOCK_ROWS-1:
             cursorRow += 1
             
-        if engine_io.RB.is_just_pressed:
+        if is_just_pressed(BUTTON_R1):
             level = (level+1) % len(clears[stage])
             loadLevel(stages[stage],level)
-        if engine_io.LB.is_just_pressed:
+        if is_just_pressed(BUTTON_L1):
             level = (level+len(clears[stage])-1) % len(clears[stage])
             loadLevel(stages[stage],level)
             
-        if engine_io.A.is_just_pressed:
+        if is_just_pressed(BUTTON_A):
             i = cursorRow*BLOCK_COLS+cursorCol
             block1 = blocks[i]
             block2 = blocks[i+1]
             if block1 is not None or block2 is not None:
                 blocks[i], blocks[i+1] = blocks[i+1], blocks[i]
                 if block1 is not None:
-                    block1.tweenMove(Vector2(block1.position.x+10,block1.position.y),200)
+                    block1.tweenMove((block1.x+10,block1.y),200)
                 if block2 is not None:
-                    block2.tweenMove(Vector2(block2.position.x-10,block2.position.y),200)
+                    block2.tweenMove((block2.x-10,block2.y),200)
                 moves -= 1
                 lblMoves.text = str(moves)
                 popLevel = 0
                 setState(SM_SWAP_ANIM)
                 
-        if engine_io.B.is_just_pressed:
+        if is_just_pressed(BUTTON_B):
             setState(SM_LEVEL_UNLOADING)
 
-        cursor.position = Vector2(BLOCKS_START_X+cursorCol*10+10,BLOCKS_START_Y+cursorRow*10+5)
+        cursor.position = (BLOCKS_START_X+cursorCol*10+10,BLOCKS_START_Y+cursorRow*10+5)
 
     elif state == SM_SWAP_ANIM:
         animDone = True
@@ -679,7 +1211,7 @@ while True:
         if block2 is not None and not block2.tween.finished:
             animDone = False
         if animDone:
-            engine_audio.play(sfxSwap,0,False)
+            mixer.play(sfxSwap)
             rumble(3,0.4)
             blocksFalling = checkFalling(blocks)
             if len(blocksFalling) > 0:
@@ -727,16 +1259,17 @@ while True:
             blockPopIndex = (frame-30)//4
             if ((frame-30)%4) == 0:
                 if 0 < blockPopIndex <= len(blocksMatching):
-                    blocksMatching[blockPopIndex-1][2].opacity = 0
+                    blocksMatching[blockPopIndex-1][2].hidden = True
                 if blockPopIndex < len(blocksMatching):
                     blocksMatching[blockPopIndex][2].frame_current_x = BLOCK_STATE_POP2
-                    engine_audio.play(sfxPops[popLevel],0,False)
+                    mixer.play(sfxPops[popLevel])
                     rumble(2,0.25)
                     popLevel = min(len(sfxPops)-1,popLevel+1)
                 else:
                     for col, row, block in blocksMatching:
+                        sprite_group.remove(block.group)
                         blocks[row*BLOCK_COLS+col] = None
-                        block.mark_destroy()
+                        del block
                     blocksFalling = checkFalling(blocks)
                     if len(blocksFalling) > 0:
                         startFallAnim(blocksFalling)
@@ -752,9 +1285,9 @@ while True:
                 break
         if cleanBoard:
             lblOverlay.text = "YOU\nWIN"
-            lblOverlay.scale = Vector2(2,2)
-            lblOverlay.opacity = 1
-            cursor.opacity = 0
+            lblOverlay.scale = 2
+            lblOverlay.hidden = False
+            cursor.hidden = True
             sprCheckmark.frame_current_x = 1
             setState(SM_LEVEL_WIN)
         elif moves > 0:
@@ -764,19 +1297,19 @@ while True:
                 if block is not None:
                     block.frame_current_x = BLOCK_STATE_DARK
             lblOverlay.text = " TRY \nAGAIN"
-            lblOverlay.scale = Vector2(1,1)
-            lblOverlay.opacity = 1
-            cursor.opacity = 0
+            lblOverlay.scale = 1
+            lblOverlay.hidden = False
+            cursor.hidden = True
             setState(SM_LEVEL_LOST)
             
     elif state == SM_LEVEL_WIN:
-        lblOverlay.opacity = 1 if ((frame % 30) < 15) else 0
+        lblOverlay.hidden = False if ((frame % 30) < 15) else 0
         if frame == 5:
-            engine_audio.play(sfxWin,0,False)
-        if frame > 30 and engine_io.A.is_just_pressed:
+            mixer.play(sfxWin)
+        if frame > 30 and is_just_pressed(BUTTON_A):
             newClear = clears[stage][level] == 0
             clears[stage][level] = 1
-            engine_save.save(stages[stage],clears[stage])
+            save_data[stages[stage]] = clears[stage]
             level = (level+1) % len(clears[stage])
             complete = True
             for clear in clears[stage]:
@@ -795,23 +1328,33 @@ while True:
             else:
                 loadLevel(stages[stage],level)
                 lblOverlay.text = ""
-                lblOverlay.opacity = 0
-                cursor.opacity = 1
+                lblOverlay.hidden = True
+                cursor.hidden = False
                 cursorCol, cursorRow = BLOCK_COLS//2-1, BLOCK_ROWS//2
                 setState(SM_CURSOR_SELECT)
         
     elif state == SM_LEVEL_LOST:
-        lblOverlay.opacity = 1 if ((frame % 30) < 15) else 0
+        lblOverlay.hidden = False if ((frame % 30) < 15) else 0
         if frame == 5:
-            engine_audio.play(sfxLose,0,False)
-        if frame > 30 and engine_io.A.is_just_pressed:
+            mixer.play(sfxLose)
+        if frame > 30 and is_just_pressed(BUTTON_A):
             loadLevel(stages[stage],level)
             lblOverlay.text = ""
-            lblOverlay.opacity = 0
-            cursor.opacity = 1
+            lblOverlay.hidden = True
+            cursor.hidden = False
             cursorCol, cursorRow = BLOCK_COLS//2-1, BLOCK_ROWS//2
             setState(SM_CURSOR_SELECT)
             
     for block in blocks:
         if block is not None:
             block.updateFalling()
+
+try:
+    with open(SAVE_FILE, "w") as f:
+        json.dump(save_data, f)
+except OSError as e:
+    print(f"Error during save: {e}")
+
+gamepad.disconnect()
+peripherals.deinit()
+supervisor.reload()
