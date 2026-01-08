@@ -1,6 +1,6 @@
 {
-    "title": "PuzzleAttack",
-    "author": "Demod",
-    "description": "Simple but challenging block-based puzzle game",
+    "title": "ThumbyColor",
+    "author": "TinyCircuits",
+    "description": "Games written for the Thumby Color and translated to CircuitPython",
     "icon": "icon.bmp"
 }
