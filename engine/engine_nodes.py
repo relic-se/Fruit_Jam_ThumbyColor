@@ -1,3 +1,370 @@
 # SPDX-FileCopyrightText: 2026 Cooper Dalrymple (@relic-se)
 #
 # SPDX-License-Identifier: GPLv3
+import displayio
+from fontio import Glyph
+from terminalio import Terminal
+
+from engine_main import _LAYERS, _get_layer
+import engine
+from engine_math import Vector2, Vector3, Rectangle
+from engine_resources import TextureResource, FontResource
+from engine_draw import Color
+
+def _get_vector3(value: Vector2|Vector3|tuple|float|int) -> Vector3:
+    if isinstance(value, Vector3):
+        return value
+    elif isinstance(value, tuple):
+        if len(value) == 2:
+            value = value + (0,)
+        return Vector3(*value)
+    elif isinstance(value, Vector2):
+        return Vector3(value.x, value.y, 0)
+    elif isinstance(value, (float, int)):
+        return Vector3(float(value), float(value), 0)
+    else:
+        return Vector3(0, 0, 0)
+
+def _get_vector2(value: Vector2|tuple|float|int) -> Vector2:
+    if isinstance(value, Vector2):
+        return value
+    elif isinstance(value, tuple):
+        if len(value) == 1:
+            value = value + (0,)
+        return Vector2(*value)
+    elif isinstance(value, (float, int)):
+        return Vector2(float(value), float(value))
+    else:
+        return Vector2(0, 0)
+    
+def _get_color(value: Color|int) -> Color:
+    if isinstance(value, int):
+        return Color(value)
+    return value
+
+class EmptyNode:
+
+    def __init__(self, position: Vector2|Vector3|tuple = None, rotation: Vector2|Vector3|tuple = None, layer: int = 0):
+        engine._nodes.append(self)
+        self.position = position
+        self.rotation = rotation
+        self._layer = min(max(layer, 0), _LAYERS-1)
+        self._children = []
+
+    def add_child(self, child: EmptyNode) -> None:
+        self._children.append(child)
+
+    def get_child(self, index: int) -> EmptyNode:
+        return self._children[index]
+    
+    def get_child_count(self) -> int:
+        return len(self._children)
+    
+    def mark_destroy_all(self) -> None:
+        self.mark_destroy_children()
+        self.mark_destroy()
+
+    def mark_destroy(self) -> None:
+        if len(self._children):
+            raise ValueError("children not empty")
+
+    def mark_destroy_children(self) -> None:
+        while len(self._children):
+            self.remove_child(self._children[len(self._children)-1])
+
+    def remove_child(self, child) -> None:
+        self._children.remove(child)
+
+    def tick(self, dt: float) -> None:
+        pass
+
+    @property
+    def position(self) -> Vector3:
+        return self._position
+    
+    @position.setter
+    def position(self, value: Vector3|tuple) -> None:
+        self._position = _get_vector3(value)
+
+    @property
+    def rotation(self) -> Vector3:
+        return self._rotation
+    
+    @rotation.setter
+    def rotation(self, value: Vector3|tuple) -> None:
+        self._rotation = _get_vector3(value)
+
+    @property
+    def layer(self) -> int:
+        return self._layer
+
+class CameraNode(EmptyNode):
+
+    def __init__(self, position: Vector3|tuple, zoom: float = 1, viewport: Rectangle = None, rotation: Vector3|tuple = None, fov: float = 0, view_distance: float = 0, layer: int = 0):
+        super().__init__(position, rotation. layer)
+        self.zoom = zoom
+        self.viewport = viewport
+        self.fov = fov
+        self.view_distance = view_distance
+        # TODO: Maybe control root group?
+
+class _GroupNode(EmptyNode):
+
+    def __init__(self, position: Vector2, rotation: float = None, scale: Vector2 = None, opacity: float = 1, layer: int = 0):
+        super().__init__(rotation=rotation, layer=layer)
+        self._group = displayio.Group()
+        self.scale = scale
+        self.position = position
+        self.opacity = opacity
+
+        self._parent = _get_layer(self._layer)
+        self._parent.append(self._group)
+
+    @property
+    def scale(self) -> Vector2:
+        return self._scale
+    
+    @scale.setter
+    def scale(self, value: Vector2|tuple) -> None:
+        self._scale = _get_vector2(value)
+        self._group.scale = max(int(self._scale.x), 1)
+
+    @property
+    def position(self) -> Vector2:
+        return self._position
+    
+    @position.setter
+    def position(self, value: Vector3|tuple) -> None:
+        self._position = _get_vector2(value)
+        self._group.x = int(self._position.x)
+        self._group.y = int(self._position.y)
+
+    @property
+    def rotation(self) -> float:
+        return self._rotation
+    
+    @rotation.setter
+    def rotation(self, value: float) -> None:
+        self._rotation = value
+
+    def add_child(self, child: EmptyNode) -> None:
+        super().add_child(child)
+        if hasattr(child, "_group"):
+            if child._group in child._parent:
+                child._parent.remove(child._group)
+            child._parent = self._group
+            self._group.append(child._group)
+    
+    def mark_destroy(self) -> None:
+        super().mark_destroy()
+        while len(self._group):
+            self._group.pop()
+        if self._group in self._parent:
+            self._parent.remove(self._group)
+            self._parent = None
+        self._group = None
+
+    def remove_child(self, child) -> None:
+        super().remove_child(child)
+        if hasattr(child, "_group") and child._group in self._group:
+            self._group.remove(child._group)
+            child._parent = None
+
+    @property
+    def opacity(self) -> float:
+        return self._opacity
+    
+    @opacity.setter
+    def opacity(self, value: float) -> None:
+        self._opacity = value
+        self._group.hidden = self._opacity <= 0.01
+
+    # TODO: global_position
+
+class Sprite2DNode(_GroupNode):
+
+    def __init__(self, position: Vector2, texture: TextureResource, transparent_color: Color|int, fps: float, frame_count_x: int = 1, frame_count_y = 1, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, layer: int = 0):
+        super().__init__(position, rotation, scale, opacity, layer)
+
+        self._group = displayio.Group()
+        self._group.x = position.x
+        self._group.y = position.y
+        self._group.scale = scale[0]
+
+        palette = displayio.Palette(len(texture._palette))
+        transparent_color = _get_color(transparent_color)
+        for i in len(palette):
+            palette[i] = texture._palette[i]
+            if palette[i] == transparent_color._rgb88:
+                palette.make_transparent(i)
+
+        self._tg = displayio.TileGrid(
+            bitmap=texture, pixel_shader=palette,
+            width=1, height=1,
+            tile_width=texture.width//frame_count_x,
+            tile_height=texture.height//frame_count_y,
+        )
+        self._tg.x = -self._tg.tile_width//2
+        self._tg.y = -self._tg.tile_height//2
+        self._group.append(self._tg)
+
+        self._frame_count_x = frame_count_x
+        self._frame_count_y = frame_count_y
+
+        self.playing = playing
+        self.loop = False
+        self.fps = fps
+
+    @property
+    def frame_current_x(self) -> int:
+        return self._tg[0] % self._frame_count_x
+    
+    @frame_current_x.setter
+    def frame_current_x(self, value: int) -> None:
+        self._tg[0] = (self.frame_current_y * self._frame_count_x) + (value % self._frame_count_x)
+
+    @property
+    def frame_current_y(self) -> int:
+        return self._tg[0] // self._frame_count_y
+    
+    @frame_current_y.setter
+    def frame_current_y(self, value: int) -> None:
+        self._tg[0] = (value % self._frame_count_y) * self._frame_count_x + self.frame_current_x
+    
+    @property
+    def fps(self) -> float:
+        return self._fps
+    
+    @fps.setter
+    def fps(self, value: float) -> None:
+        self._fps = min(value, 0)
+        self._frame_duration = 1 / value if value > 0 else None
+        self._frame_time = 0
+
+    def tick(self, dt: float) -> None:
+        if self.playing:
+            self._frame_time += dt
+            if self._frame_time >= self._frame_duration:
+                self.frame_current_x += 1
+                self._frame_time = 0
+                if not self.loop and self.frame_current_x == self._frame_count_x - 1:
+                    self.playing = False
+        
+class Rectangle2DNode(_GroupNode):
+
+    def __init__(self, position: Vector2|tuple, width: float, height: float, color: Color, opacity: float = 1, outline: bool = False, rotation: float = 0, scale: Vector2|tuple|float|int = 1, layer: int = 0):
+        super().__init__(position, rotation, scale, opacity, layer)
+        self._outline = outline
+        
+        self._bitmap = displayio.Bitmap(width, height, 1 + int(outline))
+        self._palette = displayio.Palette(1 + int(outline))
+        self.color = _get_color(color)
+        if outline:
+            self._palette.make_transparent(0)
+            for y in range(height):
+                self._bitmap[0, y] = 1
+                self._bitmap[width-1, y] = 1
+                if y in (0, height - 1):
+                    for x in range(1, width-1):
+                        self._bitmap[x, y] = 1
+        
+        _bg_tg = displayio.TileGrid(self._bitmap, self._palette)
+        _bg_tg.x, _bg_tg.y = -width // 2, -height // 2
+        self._group.append(_bg_tg)
+
+    @property
+    def color(self) -> Color:
+        return self._color
+    
+    @color.setter
+    def color(self, value: Color|int) -> None:
+        self._color = _get_color(value)
+        self._palette[int(self._outline)] = self._color._rgb888
+
+    @property
+    def width(self) -> int:
+        return self._bitmap.width
+    
+    @property
+    def height(self) -> int:
+        return self._bitmap.height
+    
+    # TODO: width/height setters?
+
+# TODO: Line2DNode, Circle2DNode - may require adafruit_display_shapes
+
+class Text2DNode(_GroupNode):
+
+    def __init__(self, position: Vector2|tuple, font: FontResource, text: str = "", rotation: float = 0, scale: Vector2|tuple|float|int = 1, opacity: float = 1, letter_spacing: int = 1, line_spacing: int = 1, color: Color|int = None, layer: int = 0):
+        super().__init__(position, rotation, scale, opacity, layer)
+        self.font = font
+        self.letter_spacing = letter_spacing
+        self.line_spacing = line_spacing
+        
+        self._palette = displayio.Palette(len(font.texture._palette))
+        self._palette = font.texture._palette
+        for i in len(self._palette):
+            self._palette[i] = font.texture._palette[i]
+            if self._palette[i] == 0xffffff:
+                self._palette_index = i
+            else:
+                self._palette[i].make_transparent(i)
+
+        # TODO: dynamic sizing?
+        width = max(max(len(x) for x in text.split("\n")), 1)
+        height = max(len(text.split("\n")), 1)
+
+        self._tg = displayio.TileGrid(
+            font.texture._bitmap, self._palette,
+            width=width, height=height,
+            tile_width=max(font.widths),
+            tile_height=font.height,
+        )
+        self._terminal = Terminal(self._tg, self)
+        self._group.append(self._tg)
+
+        self.color = _get_color(color)
+        self.text = text
+
+    @property
+    def color(self) -> Color:
+        return self._color
+    
+    @color.setter
+    def color(self, value: Color|int) -> None:
+        self._color = _get_color(value)
+        if self._palette_index:
+            self._palette[self._palette_index] = self._color._rgb888
+
+    @property
+    def text(self) -> str:
+        return self._text
+    
+    @text.setter
+    def text(self, value: str) -> None:
+        self._text = value
+        self._terminal.write("\033H\033[2J")  # erase
+        self._terminal.write(value)
+
+    # following `fontio.FontProtocol`
+
+    @property
+    def bitmap(self) -> displayio.Bitmap:
+        return self.font.texture
+    
+    def get_bounding_box(self) -> tuple:
+        return max(self.font.widths), self.font.height
+    
+    def get_glyph(self, codepoint: int) -> Glyph:
+        if self._MIN <= codepoint <= self._MAX:
+            index = codepoint - self._MIN
+            return Glyph(
+                self.texture.bitmap,
+                index,
+                self._widths[index],
+                self.font.height,
+                self._offsets[index],
+                0,
+                self._widths[index] + self.letter_spacing,
+                self.font.height + self.line_spacing
+            )
