@@ -16,17 +16,17 @@ import requests
 from circup.commands import main as circup_cli
 
 ASSET_DIRS = [
-    "bitmaps",
-    "fonts",
-    "sfx",
-    "stages"
+    "engine",
 ]
+for dir in os.listdir("../games"):
+    if not dir.startswith(".") and dir not in ("Screensaver", "Utilities"):
+        ASSET_DIRS.append("games/" + dir)
 
 SRC_FILES = [
     "boot.py",
     "code.py",
     "icon.bmp",
-    "metadata.json"
+    "metadata.json",
 ]
 
 def run(cmd):
