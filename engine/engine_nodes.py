@@ -101,7 +101,7 @@ class EmptyNode:
 class CameraNode(EmptyNode):
 
     def __init__(self, position: Vector3|tuple, zoom: float = 1, viewport: Rectangle = None, rotation: Vector3|tuple = None, fov: float = 0, view_distance: float = 0, layer: int = 0):
-        super().__init__(position, rotation. layer)
+        super().__init__(position, rotation, layer)
         self.zoom = zoom
         self.viewport = viewport
         self.fov = fov
@@ -111,10 +111,10 @@ class CameraNode(EmptyNode):
 class _GroupNode(EmptyNode):
 
     def __init__(self, position: Vector2, rotation: float = None, scale: Vector2 = None, opacity: float = 1, layer: int = 0):
-        super().__init__(rotation=rotation, layer=layer)
+        self._parent = None
         self._group = displayio.Group()
+        super().__init__(position, rotation, layer)
         self.scale = scale
-        self.position = position
         self.opacity = opacity
 
         self._parent = _get_layer(self._layer)

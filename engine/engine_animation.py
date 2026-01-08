@@ -4,7 +4,7 @@
 import math
 from micropython import const
 
-from engine_node import EmptyNode
+from engine_nodes import EmptyNode
 
 LOOP = const(1)
 ONE_SHOT = const(2)

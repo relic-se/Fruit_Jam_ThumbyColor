@@ -11,9 +11,9 @@ class Color:
 
     def set(self, *value: float|int) -> None:
         if len(value) == 1:
-            r5 = (value >> 11) & 0b11111
-            g6 = (value >> 5) & 0b111111
-            b5 = value & 0b11111
+            r5 = (value[0] >> 11) & 0b11111
+            g6 = (value[0] >> 5) & 0b111111
+            b5 = value[0] & 0b11111
 
             self._r = min(max(r5 / 0b11111, 0), 1)
             self._g = min(max(g6 / 0b111111, 0), 1)
