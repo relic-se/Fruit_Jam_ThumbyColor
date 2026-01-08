@@ -32,7 +32,7 @@ def _init() -> None:
     _group.scale = math.floor(min(_display.width, _display.height) / _DISPLAY_SIZE)
     _group.x = (_display.width - _DISPLAY_SIZE * _group.scale) // 2
     _group.y = (_display.height - _DISPLAY_SIZE * _group.scale) // 2
-    _display._group = _group
+    _display.root_group = _group
     _display.auto_refresh = False
     _display.refresh()  # clear screen
 
@@ -40,7 +40,7 @@ def _init() -> None:
     _bg_bitmap = displayio.Bitmap(_DISPLAY_SIZE, _DISPLAY_SIZE, 1)
     _bg_palette = displayio.Palette(1)
     _bg_palette[0] = 0x000000
-    _bg_tg = displayio.TileGrid(_bg_bitmap, _bg_palette)
+    _bg_tg = displayio.TileGrid(bitmap=_bg_bitmap, pixel_shader=_bg_palette)
     _group.append(_bg_tg)
 
     _layers = [None] * _LAYERS

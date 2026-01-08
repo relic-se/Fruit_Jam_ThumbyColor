@@ -268,7 +268,7 @@ class Rectangle2DNode(_GroupNode):
                     for x in range(1, width-1):
                         self._bitmap[x, y] = 1
         
-        _bg_tg = displayio.TileGrid(self._bitmap, self._palette)
+        _bg_tg = displayio.TileGrid(bitmap=self._bitmap, pixel_shader=self._palette)
         _bg_tg.x, _bg_tg.y = -width // 2, -height // 2
         self._group.append(_bg_tg)
 
@@ -315,7 +315,7 @@ class Text2DNode(_GroupNode):
         height = max(len(text.split("\n")), 1)
 
         self._tg = displayio.TileGrid(
-            font.texture._bitmap, self._palette,
+            bitmap=font.texture._bitmap, pixel_shader=self._palette,
             width=width, height=height,
             tile_width=max(font.widths),
             tile_height=font.height,
