@@ -251,7 +251,10 @@ class Sprite2DNode(_GroupNode):
         self._transparent_color = _get_color(value)
         if self._texture:
             if isinstance(self._texture._palette, displayio.ColorConverter) and self._transparent_color:
-                self._texture._palette.make_transparent(self._transparent_color._rgb888)
+                try:
+                    self._texture._palette.make_transparent(self._transparent_color._rgb888)
+                except RuntimeError:  # prevents multiple transparent color error
+                    pass
             else:
                 for i in len(self._texture._palette):
                     if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb88:
@@ -362,22 +365,25 @@ class Text2DNode(_GroupNode):
         self.font = font
         self.letter_spacing = letter_spacing
         self.line_spacing = line_spacing
-        
-        self._palette = displayio.Palette(len(font.texture._palette))
-        self._palette = font.texture._palette
-        for i in len(self._palette):
-            self._palette[i] = font.texture._palette[i]
-            if self._palette[i] == 0xffffff:
-                self._palette_index = i
-            else:
-                self._palette[i].make_transparent(i)
+
+        self._palette = None
+        self._palette_index = 0
+        if isinstance(font.texture._palette, displayio.Palette):
+            self._palette = displayio.Palette(len(font.texture._palette))
+            for i in len(self._palette):
+                self._palette[i] = font.texture._palette[i]
+                if self._palette[i] == 0xffffff:
+                    self._palette_index = i
+                else:
+                    self._palette[i].make_transparent(i)
 
         # TODO: dynamic sizing?
         width = max(max(len(x) for x in text.split("\n")), 1)
         height = max(len(text.split("\n")), 1)
 
         self._tg = displayio.TileGrid(
-            bitmap=font.texture._bitmap, pixel_shader=self._palette,
+            bitmap=font.texture._bitmap,
+            pixel_shader=self._palette if self._palette else font.texture._palette,
             width=width, height=height,
             tile_width=max(font.widths),
             tile_height=font.height,
@@ -395,7 +401,7 @@ class Text2DNode(_GroupNode):
     @color.setter
     def color(self, value: Color|int) -> None:
         self._color = _get_color(value)
-        if self._palette_index:
+        if self._palette:
             self._palette[self._palette_index] = self._color._rgb888
 
     @property
