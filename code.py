@@ -27,6 +27,7 @@ from adafruit_fruitjam.peripherals import request_display_config
 from relic_usb_host_gamepad import Gamepad, BUTTON_A, BUTTON_HOME, BUTTON_UP, BUTTON_DOWN, BUTTON_JOYSTICK_UP, BUTTON_JOYSTICK_DOWN
 
 ROOT = "/".join(__file__.split("/")[:-1])
+os.chdir(ROOT)  # force cwd
 
 def timed_reload(message: str) -> None:
     print(f"{message}\nReloading in", end="")
@@ -38,7 +39,6 @@ def timed_reload(message: str) -> None:
 
 # query games
 GAMES = []
-print(os.getcwd())
 for name in os.listdir("games"):
     if not name.startswith("."):
         try:
@@ -199,4 +199,3 @@ while True:
         write_argv(f"{ROOT}/code.py", [GAMES[selected_index]])
         supervisor.set_next_code_file(f"{ROOT}/code.py")
         supervisor.reload()
-        
