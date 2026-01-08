@@ -126,13 +126,13 @@ root_group.append(tilegrid)
 
 
 # write header and controls
-terminal.write("Thumby Color\n", 0, 0)
-terminal.write("Keyboard = Enter: select | ^C/Escape: quit\nGamepad = A: select | Home: quit", 0, SCREEN_HEIGHT - 2)
+terminal.write("Thumby Color\n\r", 0, 0)
+terminal.write("Keyboard = Enter: select | ^C/Escape: quit\n\rGamepad = A: select | Home: quit", 0, SCREEN_HEIGHT - 2)
 
 terminal.cursor(0, 1)
 for i, name in enumerate(GAMES):
     name = name[:min(len(name), SCREEN_WIDTH - 2)]
-    terminal.write(f"  {name}\n")
+    terminal.write(f"  {name}\n\r")
 
 selected_index = None
 def select(index: int) -> None:
