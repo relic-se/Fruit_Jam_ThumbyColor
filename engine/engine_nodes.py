@@ -45,11 +45,14 @@ def _get_color(value: Color|int) -> Color:
 class EmptyNode:
 
     def __init__(self, position: Vector2|Vector3|tuple = None, rotation: Vector2|Vector3|tuple = None, layer: int = 0):
-        engine._nodes.append(self)
+        self._layer = None
+        self._children = []
+
         self.position = position
         self.rotation = rotation
-        self._layer = min(max(layer, 0), _LAYERS-1)
-        self._children = []
+        self.layer = layer
+        
+        engine._nodes.append(self)
 
     def add_child(self, child: EmptyNode) -> None:
         self._children.append(child)
@@ -97,6 +100,10 @@ class EmptyNode:
     @property
     def layer(self) -> int:
         return self._layer
+    
+    @layer.setter
+    def layer(self, value: int) -> None:
+        self._layer = min(max(value, 0), _LAYERS-1)
 
 class CameraNode(EmptyNode):
 
@@ -117,6 +124,15 @@ class _GroupNode(EmptyNode):
         self.scale = scale
         self.opacity = opacity
 
+    @property
+    def layer(self) -> int:
+        return self._layer
+    
+    @layer.setter
+    def layer(self, value: int) -> None:
+        if self._parent and self._group in self._parent:
+            self._parent.remove(self._group)
+        self._layer = min(max(value, 0), _LAYERS-1)
         self._parent = _get_layer(self._layer)
         self._parent.append(self._group)
 
