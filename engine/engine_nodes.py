@@ -199,37 +199,83 @@ class _GroupNode(EmptyNode):
 
 class Sprite2DNode(_GroupNode):
 
-    def __init__(self, position: Vector2, texture: TextureResource, transparent_color: Color|int, fps: float, frame_count_x: int = 1, frame_count_y = 1, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, layer: int = 0):
+    def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 0, frame_count_x: int = 1, frame_count_y = 1, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
+        self._frame_count_x = min(frame_count_x, 1)
+        self._frame_count_y = min(frame_count_y, 1)
+        self._tg = None
+        self._texture = None
+        self._transparent_color = None
 
-        self._group = displayio.Group()
-        self._group.x = position.x
-        self._group.y = position.y
-        self._group.scale = scale[0]
+        self.playing = playing
+        self.loop = False
+        self.fps = fps
 
-        palette = displayio.Palette(len(texture._palette))
-        transparent_color = _get_color(transparent_color)
-        for i in len(palette):
-            palette[i] = texture._palette[i]
-            if palette[i] == transparent_color._rgb88:
-                palette.make_transparent(i)
+        self.texture = texture
+        self.transparent_color = transparent_color
 
+    def _make_tg(self) -> bool:
+        if self._tg or not self._texture or not self._frame_count_x or not self._frame_count_y:
+            return False
+        
         self._tg = displayio.TileGrid(
-            bitmap=texture, pixel_shader=palette,
+            bitmap=self._texture._bitmap, pixel_shader=self._texture._palette,
             width=1, height=1,
-            tile_width=texture.width//frame_count_x,
-            tile_height=texture.height//frame_count_y,
+            tile_width=self._texture.width//self._frame_count_x,
+            tile_height=self._texture.height//self._frame_count_y,
         )
         self._tg.x = -self._tg.tile_width//2
         self._tg.y = -self._tg.tile_height//2
         self._group.append(self._tg)
 
-        self._frame_count_x = frame_count_x
-        self._frame_count_y = frame_count_y
+    @property
+    def texture(self) -> TextureResource:
+        return self._texture
+    
+    @texture.setter
+    def texture(self, value: TextureResource) -> None:
+        self._texture = value
+        if self._texture:
+            if not self._make_tg():
+                self._tg.bitmap = self._texture._bitmap
+                self._tg.pixel_shader = self._texture._palette
+            if self._transparent_color:
+                self.transparent_color = self._transparent_color
+    
+    @property
+    def transparent_color(self) -> Color:
+        return self._transparent_color
 
-        self.playing = playing
-        self.loop = False
-        self.fps = fps
+    @transparent_color.setter
+    def transparent_color(self, value: Color|int) -> None:
+        self._transparent_color = _get_color(value)
+        if self._texture:
+            if isinstance(self._texture._palette, displayio.ColorConverter) and self._transparent_color:
+                self._texture._palette.make_transparent(self._transparent_color._rgb888)
+            else:
+                for i in len(self._texture._palette):
+                    if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb88:
+                        self._texture._palette.make_transparent(i)
+                    else:
+                        self._texture._palette.make_opaque(i)
+
+    @property
+    def frame_count_x(self) -> int:
+        return self._frame_count_x
+    
+    @frame_count_x.setter
+    def frame_count_x(self, value: int) -> None:
+        self._frame_count_x = min(value, 1)
+        self._make_tg()
+
+    @property
+    def frame_count_y(self) -> int:
+        return self._frame_count_y
+
+    @frame_count_y.setter
+    def frame_count_y(self, value: int) -> None:
+        self._frame_count_y = min(value, 1)
+        self._make_tg()
 
     @property
     def frame_current_x(self) -> int:
