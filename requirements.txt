@@ -1,4 +1,4 @@
+adafruit_argv_file
 adafruit_fruitjam
 adafruit_imageload
-adafruit_usb_host_mouse
 relic_usb_host_gamepad
