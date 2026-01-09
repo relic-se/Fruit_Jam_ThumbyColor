@@ -97,13 +97,16 @@ class EmptyNode:
     def rotation(self, value: Vector3|tuple) -> None:
         self._rotation = _get_vector3(value)
 
+    def _set_layer(self, value: int) -> None:
+        self._layer = min(max(value, 0), _LAYERS-1)
+
     @property
     def layer(self) -> int:
         return self._layer
     
     @layer.setter
     def layer(self, value: int) -> None:
-        self._layer = min(max(value, 0), _LAYERS-1)
+        self._set_layer(value)
 
 class CameraNode(EmptyNode):
 
@@ -133,15 +136,10 @@ class _GroupNode(EmptyNode):
         self.scale = scale
         self.opacity = opacity
 
-    @property
-    def layer(self) -> int:
-        return self._layer
-    
-    @layer.setter
-    def layer(self, value: int) -> None:
+    def _set_layer(self, value: int) -> None:
         if self._parent and self._group in self._parent:
             self._parent.remove(self._group)
-        self._layer = min(max(value, 0), _LAYERS-1)
+        super()._set_layer(value)
         self._parent = _get_layer(self._layer)
         self._parent.append(self._group)
 
@@ -209,7 +207,6 @@ class _GroupNode(EmptyNode):
 class Sprite2DNode(_GroupNode):
 
     def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 30, frame_count_x: int = None, frame_count_y: int = None, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
-        super().__init__(position, rotation, scale, opacity, layer)
         self._frame_count_x = frame_count_x
         self._frame_count_y = frame_count_y
         self._frame_current_x = 0
@@ -217,6 +214,8 @@ class Sprite2DNode(_GroupNode):
         self._tg = None
         self._texture = None
         self._transparent_color = None
+
+        super().__init__(position, rotation, scale, opacity, layer)
 
         self.playing = playing
         self.loop = loop
@@ -316,6 +315,15 @@ class Sprite2DNode(_GroupNode):
         self._fps = min(value, 0)
         self._frame_duration = 1 / value if value > 0 else None
         self._frame_time = 0
+
+    def _set_layer(self, value: int) -> None:
+        super()._set_layer(value)
+        if not self._tg and self._texture and self._transparent_color:
+            if not self._frame_count_x:
+                self._frame_count_x = 1
+            if not self._frame_count_y:
+                self._frame_count_y = 1
+            self._make_tg()
 
     def tick(self, dt: float) -> None:
         if self.playing and self._frame_duration:
