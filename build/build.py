@@ -19,7 +19,7 @@ ASSET_DIRS = [
     "engine",
 ]
 for name in os.listdir("games"):
-    if os.path.isdir(f"games/{name}") and not name.startswith(".") and name not in ("Screensaver", "Utilities"):
+    if os.path.isdir(f"games/{name}") and not name.startswith(".") and name not in ("Screensaver", "Utilities", "FloodLight"):
         ASSET_DIRS.append(f"games/{name}")
 
 SRC_FILES = [

@@ -27,7 +27,6 @@ All controls are mapped for compatibility with the Thumby Color. Currently, USB 
 | Clouds | ❓ Untested |
 | ComboPool | ❓ Untested |
 | Demos | ❓ Untested |
-| FloodLight | ❓ Untested |
 | FroggyRoad | ❓ Untested |
 | Magic8Ball | ❓ Untested |
 | Monstra | ❓ Untested |
@@ -46,6 +45,7 @@ All controls are mapped for compatibility with the Thumby Color. Currently, USB 
 
 The following applications are manually excluded from the list:
 
+- FloodLight
 - Screensaver
 - Utilities (BatteryCheck)
 
