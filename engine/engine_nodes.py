@@ -368,18 +368,21 @@ class Text2DNode(_GroupNode):
     def __init__(self, position: Vector2|tuple, font: FontResource, text: str = "", rotation: float = 0, scale: Vector2|tuple|float|int = 1, opacity: float = 1, letter_spacing: int = 1, line_spacing: int = 1, color: Color|int = None, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
 
+        self._label = None  # for setters
         self._font = font
-        self._label = Label(
-            self._font,
-            anchor_point=(0.5, 0.5),
-            anchored_position=(0, 0),
-        )
-        self._group.append(self._label)
-
         self.letter_spacing = letter_spacing
         self.line_spacing = line_spacing
         self.color = _get_color(color)
-        self.text = text
+        
+        self._label = Label(
+            self._font, text=text,
+            anchor_point=(0.5, 0.5),
+            anchored_position=(0, 0),
+            line_spacing=self._font._line_spacing/self._font.texture._bitmap.height,
+            color=self._color._rgb888 if color else None,
+        )
+        self._group.append(self._label)
+
 
     @property
     def font(self) -> FontResource:
@@ -392,7 +395,8 @@ class Text2DNode(_GroupNode):
     @color.setter
     def color(self, value: Color|int) -> None:
         self._color = _get_color(value)
-        self._label.color = self._color._rgb888
+        if self._label and self._color:
+            self._label.color = self._color._rgb888
 
     @property
     def text(self) -> str:
@@ -409,4 +413,5 @@ class Text2DNode(_GroupNode):
     @line_spacing.setter
     def line_spacing(self, value: int) -> None:
         self._font._line_spacing = value
-        self._label.line_spacing = value / self.font.texture._bitmap.height
+        if self._label:
+            self._label.line_spacing = value / self.font.texture._bitmap.height
