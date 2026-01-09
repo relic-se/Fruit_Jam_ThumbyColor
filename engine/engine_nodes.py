@@ -208,10 +208,10 @@ class _GroupNode(EmptyNode):
 
 class Sprite2DNode(_GroupNode):
 
-    def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 30, frame_count_x: int = 1, frame_count_y = 1, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
+    def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 30, frame_count_x: int = None, frame_count_y: int = None, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
-        self._frame_count_x = min(frame_count_x, 1)
-        self._frame_count_y = min(frame_count_y, 1)
+        self._frame_count_x = frame_count_x
+        self._frame_count_y = frame_count_y
         self._tg = None
         self._texture = None
         self._transparent_color = None
@@ -220,11 +220,11 @@ class Sprite2DNode(_GroupNode):
         self.loop = loop
         self.fps = fps
 
-        self.texture = texture
         self.transparent_color = transparent_color
+        self.texture = texture
 
     def _make_tg(self) -> bool:
-        if self._tg or not self._texture or not self._frame_count_x or not self._frame_count_y:
+        if self._tg or not self._texture or not self._frame_count_x or not self._frame_count_y or not self._transparent_color:
             return False
         
         self._tg = displayio.TileGrid(
@@ -237,6 +237,18 @@ class Sprite2DNode(_GroupNode):
         self._tg.y = -self._tg.tile_height//2
         self._group.append(self._tg)
 
+        if isinstance(self._texture._palette, displayio.ColorConverter) and self._transparent_color:
+            try:
+                self._texture._palette.make_transparent(self._transparent_color._rgb888)
+            except RuntimeError:  # prevents multiple transparent color error
+                pass
+        else:
+            for i in len(self._texture._palette):
+                if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb88:
+                    self._texture._palette.make_transparent(i)
+                else:
+                    self._texture._palette.make_opaque(i)
+
     @property
     def texture(self) -> TextureResource:
         return self._texture
@@ -244,12 +256,7 @@ class Sprite2DNode(_GroupNode):
     @texture.setter
     def texture(self, value: TextureResource) -> None:
         self._texture = value
-        if self._texture:
-            if not self._make_tg():
-                self._tg.bitmap = self._texture._bitmap
-                self._tg.pixel_shader = self._texture._palette
-            if self._transparent_color:
-                self.transparent_color = self._transparent_color
+        self._make_tg()
     
     @property
     def transparent_color(self) -> Color:
@@ -258,18 +265,7 @@ class Sprite2DNode(_GroupNode):
     @transparent_color.setter
     def transparent_color(self, value: Color|int) -> None:
         self._transparent_color = _get_color(value)
-        if self._texture:
-            if isinstance(self._texture._palette, displayio.ColorConverter) and self._transparent_color:
-                try:
-                    self._texture._palette.make_transparent(self._transparent_color._rgb888)
-                except RuntimeError:  # prevents multiple transparent color error
-                    pass
-            else:
-                for i in len(self._texture._palette):
-                    if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb88:
-                        self._texture._palette.make_transparent(i)
-                    else:
-                        self._texture._palette.make_opaque(i)
+        self._make_tg()
 
     @property
     def frame_count_x(self) -> int:
@@ -277,7 +273,7 @@ class Sprite2DNode(_GroupNode):
     
     @frame_count_x.setter
     def frame_count_x(self, value: int) -> None:
-        self._frame_count_x = min(value, 1)
+        self._frame_count_x = value
         self._make_tg()
 
     @property
@@ -286,24 +282,24 @@ class Sprite2DNode(_GroupNode):
 
     @frame_count_y.setter
     def frame_count_y(self, value: int) -> None:
-        self._frame_count_y = min(value, 1)
+        self._frame_count_y = value
         self._make_tg()
 
     @property
     def frame_current_x(self) -> int:
-        return self._tg[0] % self._frame_count_x
+        return self._tg[0] % self._frame_count_x if self._frame_count_x else 0
     
     @frame_current_x.setter
     def frame_current_x(self, value: int) -> None:
-        self._tg[0] = (self.frame_current_y * self._frame_count_x) + (value % self._frame_count_x)
+        self._tg[0] = (self.frame_current_y * self._frame_count_x) + (value % self._frame_count_x) if self._frame_count_x else 0
 
     @property
     def frame_current_y(self) -> int:
-        return self._tg[0] // self._frame_count_y
+        return self._tg[0] // self._frame_count_y if self._frame_count_y else 0
     
     @frame_current_y.setter
     def frame_current_y(self, value: int) -> None:
-        self._tg[0] = (value % self._frame_count_y) * self._frame_count_x + self.frame_current_x
+        self._tg[0] = (value % self._frame_count_y) * self._frame_count_x + self.frame_current_x if self._frame_count_y else 0
     
     @property
     def fps(self) -> float:
