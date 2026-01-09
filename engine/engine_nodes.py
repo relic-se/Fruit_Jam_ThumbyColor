@@ -173,7 +173,7 @@ class _GroupNode(EmptyNode):
     def add_child(self, child: EmptyNode) -> None:
         super().add_child(child)
         if hasattr(child, "_group"):
-            if child._group in child._parent:
+            if child._parent and child._group in child._parent:
                 child._parent.remove(child._group)
             child._parent = self._group
             self._group.append(child._group)
