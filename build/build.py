@@ -15,12 +15,16 @@ import zipfile
 import requests
 from circup.commands import main as circup_cli
 
+ALLOWED_GAMES = [
+    "PuzzleAttack"
+]
+
 ASSET_DIRS = [
     "bitmaps",
     "engine",
 ]
 for name in os.listdir("games"):
-    if os.path.isdir(f"games/{name}") and not name.startswith(".") and name not in ("Screensaver", "Utilities", "FloodLight"):
+    if os.path.isdir(f"games/{name}") and not name.startswith(".") and name in ALLOWED_GAMES:
         ASSET_DIRS.append(f"games/{name}")
 
 SRC_FILES = [
