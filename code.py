@@ -51,6 +51,7 @@ for name in os.listdir("games"):
             GAMES.append(name)
 if not GAMES:
     timed_reload("No games installed!")
+GAMES.sort()  # sort alphabetically
 
 # check if we need to be launching a game
 args = read_argv(__file__)
@@ -120,7 +121,7 @@ class Terminal(terminalio.Terminal):
         self._terminal.write(text)
 
 CHAR_WIDTH, CHAR_HEIGHT = FONT.get_bounding_box()[0:2]
-SCREEN_WIDTH, SCREEN_HEIGHT = display.width // CHAR_WIDTH, display.height // CHAR_HEIGHT
+SCREEN_WIDTH, SCREEN_HEIGHT = display.width // 2 // CHAR_WIDTH, display.height // CHAR_HEIGHT
 
 palette = displayio.Palette(2)
 palette[0] = config.palette_bg if config else 0x000000
@@ -165,23 +166,26 @@ for i, name in enumerate(GAMES):
 selected_index = None
 def select(index: int) -> None:
     global selected_index
-    index = min(max(index, 0), len(GAMES) - 1)
-    if index != selected_index:
-        if selected_index:
-            terminal.write("  ", 0, 1 + selected_index)
-        selected_index = index
-        terminal.write("=>", 0, 1 + selected_index)
+    if selected_index:
+        terminal.write("  ", 0, 1 + selected_index)
+    
+    selected_index = min(max(index, 0), len(GAMES) - 1)
+    terminal.write("=>", 0, 1 + selected_index)
 
-        icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
-        try:
-            os.stat(icon_path)
-        except OSError:
-            icon.bitmap = default_icon_bmp
-            icon.pixel_shader = default_icon_palette
-        else:
-            icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
+    icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
+    try:
+        os.stat(icon_path)
+    except OSError:
+        icon.bitmap = default_icon_bmp
+        icon.pixel_shader = default_icon_palette
+    else:
+        icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
+        if icon_bmp.width == icon.tile_width and icon_bmp.height == icon.tile_height:
             icon.bitmap = icon_bmp
             icon.pixel_shader = icon_palette
+        else:
+            icon.bitmap = default_icon_bmp
+            icon.pixel_shader = default_icon_palette
 select(0)
 
 # setup input devices
@@ -236,5 +240,9 @@ while True:
         select(selected_index + 1)
     elif is_just_pressed(BUTTON_A):
         write_argv(f"{ROOT}/code.py", [GAMES[selected_index]])
-        supervisor.set_next_code_file(f"{ROOT}/code.py", sticky_on_error=True)
+        supervisor.set_next_code_file(
+            f"{ROOT}/code.py",
+            sticky_on_error=True,
+            reload_on_error=True,
+        )
         supervisor.reload()
