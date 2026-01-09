@@ -74,6 +74,12 @@ if args is not None and len(args) > 0:
     engine_main._init()
 
     # run program
+    try:
+        __import__(f"{ROOT}/games/{name}/main.py")
+    except SystemExit:
+        pass
+    except Exception as e:
+        raise e
 
     # handle save data
     engine_save._dump()
@@ -149,7 +155,7 @@ icon_group.append(icon)
 
 # write header and controls
 terminal.write("Thumby Color\n\r", 0, 0)
-terminal.write("Keyboard = Enter: select | ^C/Escape: quit\n\rGamepad = A: select | Home: quit", 0, SCREEN_HEIGHT - 2)
+terminal.write("Keyboard = Enter: select | Escape: quit\n\rGamepad = A: select | Home: quit", 0, SCREEN_HEIGHT - 2)
 
 terminal.cursor(0, 1)
 for i, name in enumerate(GAMES):
