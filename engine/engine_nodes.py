@@ -338,9 +338,9 @@ class Rectangle2DNode(_GroupNode):
                     for x in range(1, width-1):
                         self._bitmap[x, y] = 1
         
-        _bg_tg = displayio.TileGrid(bitmap=self._bitmap, pixel_shader=self._palette)
-        _bg_tg.x, _bg_tg.y = -width // 2, -height // 2
-        self._group.append(_bg_tg)
+        self._tg = displayio.TileGrid(bitmap=self._bitmap, pixel_shader=self._palette)
+        self._tg.x, self._tg.y = -width // 2, -height // 2
+        self._group.append(self._tg)
 
     @property
     def color(self) -> Color:
