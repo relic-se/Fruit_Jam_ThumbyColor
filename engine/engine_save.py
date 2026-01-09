@@ -57,7 +57,7 @@ def save(entry_name, value) -> None:
         _data[entry_name] = value
 
 def load(entry_name: str, default):
-    return _data.get(entry_name, default) if _data else None
+    return _data.get(entry_name, default) if _data else default
 
 def delete(entry_name: str) -> None:
     if _data:
