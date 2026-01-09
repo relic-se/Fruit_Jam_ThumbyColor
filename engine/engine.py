@@ -48,7 +48,7 @@ def tick() -> bool:
     # tick nodes
     now = time.monotonic()
     if _running and _timestamp is not None:
-        dt = _timestamp - now
+        dt = now - _timestamp
         for node in _nodes:
             node.tick(dt)
     _timestamp = now
@@ -71,4 +71,4 @@ def time_to_next_tick() -> float:
     return max((1 / _fps_limit) - (time.monotonic() - _timestamp), 0)
 
 def reset(soft_reset: bool = False) -> None:
-    raise KeyboardInterrupt()  # returns to picker
+    raise SystemExit  # returns to picker

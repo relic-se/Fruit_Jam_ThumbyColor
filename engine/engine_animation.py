@@ -61,6 +61,7 @@ class Tween(EmptyNode):
         self._after = None
 
     def start(self, object: object, attribute_name: str, start: float|tuple, end: float|tuple, duration: int, speed: float = None, loop_type: int = ONE_SHOT, ease_type: int = EASE_LINEAR) -> None:
+        # TODO: speed?
         self._object = object
         self._attribute_name = attribute_name
         self._start = start
@@ -104,8 +105,8 @@ class Tween(EmptyNode):
         return (end - start) * position + start
 
     def tick(self, dt: float) -> None:
-        if self._playing:
-            self._position += dt / self.duration
+        if self._playing and self._duration > 0:
+            self._position += dt / self._duration
             if self._position >= 1:
                 self.end()
             else:

@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Cooper Dalrymple (@relic-se)
 #
 # SPDX-License-Identifier: GPLv3
-import atexit
 import json
 import os
 
@@ -63,11 +62,14 @@ def delete(entry_name: str) -> None:
     if _data:
         _data.pop(entry_name)
 
-def atexit_callback() -> None:
+def _dump() -> bool:
     if _dir and _filepath and _data:
         try:
             with open(f"{_DIR}/{_dir}/{_filepath}", "w") as f:
                 json.dump(_data, f)
         except (OSError, IOError):
-            pass
-atexit.register(atexit_callback)
+            return False
+        else:
+            return True
+    else:
+        return False

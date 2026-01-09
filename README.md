@@ -17,29 +17,29 @@ All controls are mapped for compatibility with the Thumby Color. Currently, USB 
 
 ## Compatibility List
 
-| Game | Compatible |
+| Game | Status |
 |------|------------|
-| 4Connect | ❓ Untested |
-| 2048 | ❓ Untested |
-| BadApple | ❓ Untested |
-| BustAThumb | ❓ Untested |
-| Chess | ❓ Untested |
-| Clouds | ❓ Untested |
-| ComboPool | ❓ Untested |
-| Demos | ❓ Untested |
-| FroggyRoad | ❓ Untested |
-| Magic8Ball | ❓ Untested |
-| Monstra | ❓ Untested |
-| PuzzleAttack | ❓ Untested |
-| Sand | ❓ Untested |
-| Solitaire | ❓ Untested |
-| SongOfMorus | ❓ Untested |
-| Tagged | ❓ Untested |
-| Tetrumb | ❓ Untested |
-| ThumbAtro | ❓ Untested |
-| ThumbSweeper | ❓ Untested |
-| Thumgeon_II | ❓ Untested |
-| WallRacerC | ❓ Untested |
+| 4Connect | ❓ _Untested_ |
+| 2048 | ❓ _Untested_ |
+| BadApple | ❓ _Untested_ |
+| BustAThumb | ❓ _Untested_ |
+| Chess | ❓ _Untested_ |
+| Clouds | ❓ _Untested_ |
+| ComboPool | ❓ _Untested_ |
+| Demos | ❓ _Untested_ |
+| FroggyRoad | ❓ _Untested_ |
+| Magic8Ball | ❓ _Untested_ |
+| Monstra | ❓ _Untested_ |
+| PuzzleAttack | ⚠️ _Playable_ |
+| Sand | ❓ _Untested_ |
+| Solitaire | ❓ _Untested_ |
+| SongOfMorus | ❓ _Untested_ |
+| Tagged | ❓ _Untested_ |
+| Tetrumb | ❓ _Untested_ |
+| ThumbAtro | ❓ _Untested_ |
+| ThumbSweeper | ❓ _Untested_ |
+| Thumgeon_II | ❓ _Untested_ |
+| WallRacerC | ❓ _Untested_ |
 
 ### Excluded Applications
 

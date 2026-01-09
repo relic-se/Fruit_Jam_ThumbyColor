@@ -11,7 +11,7 @@ _DISPLAY_SIZE = 128
 _LAYERS = 128
 
 def _init() -> None:
-    global _config, _display, _group, _layers, _peripherals, _bg_palette
+    global _config, _display, _root_group, _layer_group, _layers, _peripherals, _bg_palette
 
     # get Fruit Jam OS config if available
     try:
@@ -28,11 +28,11 @@ def _init() -> None:
     _display = supervisor.runtime.display
 
     # create root group
-    _group = displayio.Group()
-    _group.scale = math.floor(min(_display.width, _display.height) / _DISPLAY_SIZE)
-    _group.x = _display.width // 2
-    _group.y = _display.height // 2
-    _display.root_group = _group
+    _root_group = displayio.Group()
+    _root_group.scale = math.floor(min(_display.width, _display.height) / _DISPLAY_SIZE)
+    _root_group.x = _display.width // 2
+    _root_group.y = _display.height // 2
+    _display.root_group = _root_group
     _display.auto_refresh = False
     _display.refresh()  # clear screen
 
@@ -41,9 +41,12 @@ def _init() -> None:
     _bg_palette = displayio.Palette(1)
     _bg_palette[0] = 0x000000
     _bg_tg = displayio.TileGrid(bitmap=_bg_bitmap, pixel_shader=_bg_palette)
-    _group.append(_bg_tg)
+    _root_group.append(_bg_tg)
 
-    _layers = [None] * _LAYERS
+    # setup layers
+    _layer_group = displayio.Group()
+    _root_group.append(_layer_group)
+    _layers = {}
 
     # setup audio, buttons, and neopixels
     _peripherals = adafruit_fruitjam.peripherals.Peripherals(
@@ -55,7 +58,11 @@ def _init() -> None:
 
 def _get_layer(index: int) -> displayio.Group:
     index = min(max(index, 0), _LAYERS-1)
-    if _layers[index] is None:
-        _layers[index] = displayio.Group()
-        _group.append(_layers[index])  # TODO: sorting?
-    return _layers[index]
+    if index not in _layers:
+        layer = displayio.Group()
+        _layers[index] = layer
+        _layer_group.append(layer)
+        _layer_group.sort(key=lambda x: next(i for i, layer in _layers.items() if layer == x))  # ensure that layers are in order
+        return layer
+    else:
+        return _layers[index]

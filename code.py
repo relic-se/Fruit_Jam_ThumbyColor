@@ -76,8 +76,13 @@ if args is not None and len(args) > 0:
     # run program
     try:
         __import__(f"{ROOT}/games/{name}/main.py")
-    except KeyboardInterrupt:
+    except SystemExit:
         pass
+    except Exception as e:
+        raise e
+
+    # handle save data
+    engine_save._dump()
 
     # reload application
     supervisor.set_next_code_file(f"{ROOT}/code.py")
@@ -150,7 +155,7 @@ icon_group.append(icon)
 
 # write header and controls
 terminal.write("Thumby Color\n\r", 0, 0)
-terminal.write("Keyboard = Enter: select | ^C/Escape: quit\n\rGamepad = A: select | Home: quit", 0, SCREEN_HEIGHT - 2)
+terminal.write("Keyboard = Enter: select | Escape: quit\n\rGamepad = A: select | Home: quit", 0, SCREEN_HEIGHT - 2)
 
 terminal.cursor(0, 1)
 for i, name in enumerate(GAMES):
@@ -224,7 +229,7 @@ while True:
 
     # handle button press
     if is_just_pressed(BUTTON_HOME) or (gamepad.buttons.SELECT and gamepad.buttons.START):
-        break
+        supervisor.reload()
     elif is_just_pressed(BUTTON_UP, BUTTON_JOYSTICK_UP):
         select(selected_index - 1)
     elif is_just_pressed(BUTTON_DOWN, BUTTON_JOYSTICK_DOWN):
