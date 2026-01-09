@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPLv3
 import displayio
-from fontio import Glyph
-from terminalio import Terminal
+
+from adafruit_display_text.label import Label
 
 from engine_main import _LAYERS, _get_layer
 import engine
@@ -362,37 +362,23 @@ class Text2DNode(_GroupNode):
 
     def __init__(self, position: Vector2|tuple, font: FontResource, text: str = "", rotation: float = 0, scale: Vector2|tuple|float|int = 1, opacity: float = 1, letter_spacing: int = 1, line_spacing: int = 1, color: Color|int = None, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
-        self.font = font
+
+        self._font = font
+        self._label = Label(
+            self._font,
+            anchor_point=(0.5, 0.5),
+            anchored_position=(0, 0),
+        )
+        self._group.append(self._label)
+
         self.letter_spacing = letter_spacing
         self.line_spacing = line_spacing
-
-        self._palette = None
-        self._palette_index = 0
-        if isinstance(font.texture._palette, displayio.Palette):
-            self._palette = displayio.Palette(len(font.texture._palette))
-            for i in len(self._palette):
-                self._palette[i] = font.texture._palette[i]
-                if self._palette[i] == 0xffffff:
-                    self._palette_index = i
-                else:
-                    self._palette[i].make_transparent(i)
-
-        # TODO: dynamic sizing?
-        width = max(max(len(x) for x in text.split("\n")), 1)
-        height = max(len(text.split("\n")), 1)
-
-        self._tg = displayio.TileGrid(
-            bitmap=font.texture._bitmap,
-            pixel_shader=self._palette if self._palette else font.texture._palette,
-            width=width, height=height,
-            tile_width=max(font.widths),
-            tile_height=font.height,
-        )
-        self._terminal = Terminal(self._tg, self)
-        self._group.append(self._tg)
-
         self.color = _get_color(color)
         self.text = text
+
+    @property
+    def font(self) -> FontResource:
+        return self._font
 
     @property
     def color(self) -> Color:
@@ -401,38 +387,21 @@ class Text2DNode(_GroupNode):
     @color.setter
     def color(self, value: Color|int) -> None:
         self._color = _get_color(value)
-        if self._palette:
-            self._palette[self._palette_index] = self._color._rgb888
+        self._label.color = self._color._rgb888
 
     @property
     def text(self) -> str:
-        return self._text
+        return self._label.text
     
     @text.setter
     def text(self, value: str) -> None:
-        self._text = value
-        self._terminal.write("\033H\033[2J")  # erase
-        self._terminal.write(value)
-
-    # following `fontio.FontProtocol`
+        self._label.text = value
 
     @property
-    def bitmap(self) -> displayio.Bitmap:
-        return self.font.texture
+    def line_spacing(self) -> int:
+        return self._font._line_spacing
     
-    def get_bounding_box(self) -> tuple:
-        return max(self.font.widths), self.font.height
-    
-    def get_glyph(self, codepoint: int) -> Glyph:
-        if self._MIN <= codepoint <= self._MAX:
-            index = codepoint - self._MIN
-            return Glyph(
-                self.texture.bitmap,
-                index,
-                self._widths[index],
-                self.font.height,
-                self._offsets[index],
-                0,
-                self._widths[index] + self.letter_spacing,
-                self.font.height + self.line_spacing
-            )
+    @line_spacing.setter
+    def line_spacing(self, value: int) -> None:
+        self._font._line_spacing = value
+        self._label.line_spacing = value / self.font.texture._bitmap.height

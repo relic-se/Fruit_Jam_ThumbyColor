@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: GPLv3
 import audiocore
-import fontio
+from displayio import Bitmap
+from fontio import Glyph
 
 import adafruit_imageload
 
@@ -42,7 +43,8 @@ class FontResource:
         width = 0
         for x in range(self.texture.width):
             value = self.texture._bitmap[x, y]
-            if value is not color:
+            if value != color:
+                color = value
                 self._widths.append(width)
                 self._offsets.append(x - width)
                 width = 1
@@ -52,6 +54,10 @@ class FontResource:
         self._offsets.append(self.texture.width - width)
         self._widths = tuple(self._widths)
         self._offsets = tuple(self._offsets)
+
+        self._letter_spacing = 1
+        self._line_spacing = 1
+        self._glyphs = [None] * (self._MAX - self._MIN + 1)
 
     @property
     def widths(self) -> bytearray:
@@ -64,3 +70,31 @@ class FontResource:
     @property
     def height(self) -> int:
         return self.texture.height - 1
+
+    # `fontio.FontProtocol`
+
+    @property
+    def bitmap(self) -> Bitmap:
+        return self.texture
+    
+    def get_bounding_box(self) -> tuple:
+        return max(self.widths), self.height
+    
+    def get_glyph(self, codepoint: int) -> Glyph:
+        if self._MIN <= codepoint <= self._MAX:
+            index = codepoint - self._MIN
+            if index in self._glyphs:
+                return self._glyphs[index]
+            else:
+                glyph = Glyph(
+                    self.texture._bitmap,
+                    index,
+                    self._widths[index],
+                    self.texture._bitmap.height,
+                    self._offsets[index],
+                    0,
+                    self._widths[index] + self._letter_spacing,
+                    self.height + self._line_spacing
+                )
+                self._glyphs[index] = glyph
+                return glyph
