@@ -48,7 +48,7 @@ def tick() -> bool:
     # tick nodes
     now = time.monotonic()
     if _running and _timestamp is not None:
-        dt = _timestamp - now
+        dt = now - _timestamp
         for node in _nodes:
             node.tick(dt)
     _timestamp = now
