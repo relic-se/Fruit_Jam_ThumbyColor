@@ -166,27 +166,26 @@ for i, name in enumerate(GAMES):
 selected_index = None
 def select(index: int) -> None:
     global selected_index
-    index = min(max(index, 0), len(GAMES) - 1)
-    if index != selected_index:
-        if selected_index:
-            terminal.write("  ", 0, 1 + selected_index)
-        selected_index = index
-        terminal.write("=>", 0, 1 + selected_index)
+    if selected_index:
+        terminal.write("  ", 0, 1 + selected_index)
+    
+    selected_index = min(max(index, 0), len(GAMES) - 1)
+    terminal.write("=>", 0, 1 + selected_index)
 
-        icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
-        try:
-            os.stat(icon_path)
-        except OSError:
+    icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
+    try:
+        os.stat(icon_path)
+    except OSError:
+        icon.bitmap = default_icon_bmp
+        icon.pixel_shader = default_icon_palette
+    else:
+        icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
+        if icon_bmp.width == icon.tile_width and icon_bmp.height == icon.tile_height:
+            icon.bitmap = icon_bmp
+            icon.pixel_shader = icon_palette
+        else:
             icon.bitmap = default_icon_bmp
             icon.pixel_shader = default_icon_palette
-        else:
-            icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
-            if icon_bmp.width == icon.tile_width and icon_bmp.height == icon.tile_height:
-                icon.bitmap = icon_bmp
-                icon.pixel_shader = icon_palette
-            else:
-                icon.bitmap = default_icon_bmp
-                icon.pixel_shader = default_icon_palette
 select(0)
 
 # setup input devices
