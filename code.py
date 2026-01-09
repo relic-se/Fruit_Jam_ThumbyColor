@@ -51,6 +51,7 @@ for name in os.listdir("games"):
             GAMES.append(name)
 if not GAMES:
     timed_reload("No games installed!")
+GAMES.sort()  # sort alphabetically
 
 # check if we need to be launching a game
 args = read_argv(__file__)
