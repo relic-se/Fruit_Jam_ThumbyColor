@@ -180,8 +180,12 @@ def select(index: int) -> None:
             icon.pixel_shader = default_icon_palette
         else:
             icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
-            icon.bitmap = icon_bmp
-            icon.pixel_shader = icon_palette
+            if icon_bmp.width == icon.tile_width and icon_bmp.height == icon.tile_height:
+                icon.bitmap = icon_bmp
+                icon.pixel_shader = icon_palette
+            else:
+                icon.bitmap = default_icon_bmp
+                icon.pixel_shader = default_icon_palette
 select(0)
 
 # setup input devices
