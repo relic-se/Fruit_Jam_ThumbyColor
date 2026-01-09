@@ -223,7 +223,7 @@ while True:
 
     # handle button press
     if is_just_pressed(BUTTON_HOME) or (gamepad.buttons.SELECT and gamepad.buttons.START):
-        break
+        supervisor.reload()
     elif is_just_pressed(BUTTON_UP, BUTTON_JOYSTICK_UP):
         select(selected_index - 1)
     elif is_just_pressed(BUTTON_DOWN, BUTTON_JOYSTICK_DOWN):
