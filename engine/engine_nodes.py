@@ -363,6 +363,8 @@ class Rectangle2DNode(_GroupNode):
 
 # TODO: Line2DNode, Circle2DNode - may require adafruit_display_shapes
 
+from  terminalio import FONT  # NOTE: Remove when FontResource is supported
+
 class Text2DNode(_GroupNode):
 
     def __init__(self, position: Vector2|tuple, font: FontResource, text: str = "", rotation: float = 0, scale: Vector2|tuple|float|int = 1, opacity: float = 1, letter_spacing: int = 1, line_spacing: int = 1, color: Color|int = None, layer: int = 0):
@@ -375,7 +377,8 @@ class Text2DNode(_GroupNode):
         self.color = _get_color(color)
         
         self._label = Label(
-            self._font, text=text,
+            FONT,  # BUG: custom font not supported at this time
+            text=text,
             anchor_point=(0.5, 0.5),
             anchored_position=(0, 0),
             line_spacing=self._font._line_spacing/self._font.texture._bitmap.height,
