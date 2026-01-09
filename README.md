@@ -1,6 +1,8 @@
 # Thumby Color Emulator for the Adafruit Fruit Jam
 Translates the [TinyCircuits Thumby Color](https://tinycircuits.com/products/thumby-color) [engine API](https://color.thumby.us/doc/landing.html) into CircuitPython for use with the [Adafruit Fruit Jam](https://www.adafruit.com/product/6200).
 
+![Screenshot of the game picker of the Thumby Color application on the Adafruit Fruit Jam](assets/screenshot.jpg)
+
 ## Controls
 
 All controls are mapped for compatibility with the Thumby Color. Currently, USB boot keyboards and [various gamepads](https://circuitpython-usb-host-gamepad.readthedocs.io/) are supported.
