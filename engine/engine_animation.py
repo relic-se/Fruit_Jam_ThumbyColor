@@ -134,3 +134,5 @@ class Tween(EmptyNode):
     @property
     def finished(self) -> bool:
         return self._finished
+
+# TODO: Delay class
