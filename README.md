@@ -19,35 +19,37 @@ All controls are mapped for compatibility with the Thumby Color. Currently, USB 
 
 | Game | Status |
 |------|------------|
-| 4Connect | ❓ _Untested_ |
-| 2048 | ❓ _Untested_ |
-| BadApple | ❓ _Untested_ |
-| BustAThumb | ❓ _Untested_ |
-| Chess | ❓ _Untested_ |
-| Clouds | ❓ _Untested_ |
-| ComboPool | ❓ _Untested_ |
-| Demos | ❓ _Untested_ |
-| FroggyRoad | ❓ _Untested_ |
-| Magic8Ball | ❓ _Untested_ |
-| Monstra | ❓ _Untested_ |
-| PuzzleAttack | ⚠️ _Playable_ |
-| Sand | ❓ _Untested_ |
-| Solitaire | ❓ _Untested_ |
-| SongOfMorus | ❓ _Untested_ |
-| Tagged | ❓ _Untested_ |
-| Tetrumb | ❓ _Untested_ |
-| ThumbAtro | ❓ _Untested_ |
-| ThumbSweeper | ❓ _Untested_ |
-| Thumgeon_II | ❓ _Untested_ |
-| WallRacerC | ❓ _Untested_ |
+| PuzzleAttack | ⚠️ _Playable, saves not working_ |
 
 ### Excluded Applications
 
-The following applications are manually excluded from the list:
+The following applications are excluded from this package:
 
-- FloodLight
-- Screensaver
-- Utilities (BatteryCheck)
+| Game | Reason |
+|------|--------|
+| 2048 | ❌ _Requires `engine_animation.Delay`_ |
+| 4Connect | ❌ _Requires `engine_nodes.PhysicsRectangle2DNode`_ |
+| BadApple | ❌ _Micropython incompatibility_ |
+| BustAThumb | ❌ _Micropython incompatibility_ |
+| Chess | ❌ _Requires `engine_nodes.Line2DNode_ |
+| Clouds | ❌ _Micropython incompatibility_ |
+| ComboPool | ❌ _Requires `engine_nodes.PhysicsRectangle2DNode`_ |
+| Demos | 🛑 _Not planned_ |
+| FloodLight | 🛑 _Hardware incompatibility_ |
+| FroggyRoad | ❌ _Requires `engine_animation.Delay`_ |
+| Magic8Ball | ❌ _Requires `micropython.mem_info`_ |
+| Monstra | ❌ _Requires `time.ticks_ms`_ |
+| Sand | ❌ _Micropython decorator incompatibility_ |
+| Screensaver | Incompatible with FJOS |
+| Solitaire | ❌ _Micropython incompatibility, `super().__init__(self, ...`_ |
+| SongOfMorus | 🛑 _Requires 3D rendering_ |
+| Tagged | ❌ _Micropython decorator incompatibility_ |
+| Tetrumb | ❌ _Requires `framebuf`_ |
+| ThumbAtro | ❌ _Requires `engine_animation.Delay`_ |
+| ThumbSweeper | ❌ _Requires `engine_animation.Delay`_ |
+| Thumgeon_II | | ❌ _Requires `engine_physics`_ |
+| Utilities | 🛑 _Hardware incompatibility_ |
+| WallRacerC | ❌ _Requires `framebuf`_ |
 
 ## Building
 Ensure that you have python 3.x installed system-wide and all the prerequisite libraries installed using the following command:

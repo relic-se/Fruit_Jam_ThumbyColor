@@ -26,7 +26,7 @@ import time
 from adafruit_argv_file import read_argv, write_argv
 from adafruit_fruitjam.peripherals import request_display_config
 import adafruit_imageload
-from relic_usb_host_gamepad import Gamepad, BUTTON_A, BUTTON_HOME, BUTTON_UP, BUTTON_DOWN, BUTTON_JOYSTICK_UP, BUTTON_JOYSTICK_DOWN
+from relic_usb_host_gamepad import Gamepad, BUTTON_A, BUTTON_HOME, BUTTON_UP, BUTTON_DOWN, BUTTON_JOYSTICK_UP, BUTTON_JOYSTICK_DOWN, BUTTON_NAMES
 
 ROOT = "/".join(__file__.split("/")[:-1])
 os.chdir(ROOT)  # force cwd
@@ -169,7 +169,7 @@ def select(index: int) -> None:
     if selected_index:
         terminal.write("  ", 0, 1 + selected_index)
     
-    selected_index = min(max(index, 0), len(GAMES) - 1)
+    selected_index = index % len(GAMES)
     terminal.write("=>", 0, 1 + selected_index)
 
     icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
@@ -200,6 +200,12 @@ KEY_MAP = {
 }
 
 gamepad = Gamepad()
+def is_pressed(*buttons: int) -> bool:
+    if any(getattr(gamepad.buttons, BUTTON_NAMES[i]) for i in buttons):
+        return True
+    if keys and any(key in KEY_MAP and KEY_MAP[key] in buttons for key in keys):
+        return True
+    return False
 def is_just_pressed(*buttons: int) -> bool:
     if gamepad.connected and any(event.pressed and event.key_number in buttons for event in gamepad.events):
         return True
@@ -234,9 +240,9 @@ while True:
     # handle button press
     if is_just_pressed(BUTTON_HOME) or (gamepad.buttons.SELECT and gamepad.buttons.START):
         supervisor.reload()
-    elif is_just_pressed(BUTTON_UP, BUTTON_JOYSTICK_UP):
+    elif is_pressed(BUTTON_UP, BUTTON_JOYSTICK_UP):
         select(selected_index - 1)
-    elif is_just_pressed(BUTTON_DOWN, BUTTON_JOYSTICK_DOWN):
+    elif is_pressed(BUTTON_DOWN, BUTTON_JOYSTICK_DOWN):
         select(selected_index + 1)
     elif is_just_pressed(BUTTON_A):
         write_argv(f"{ROOT}/code.py", [GAMES[selected_index]])
