@@ -17,16 +17,17 @@ from circup.commands import main as circup_cli
 
 ASSET_DIRS = [
     "bitmaps",
-    "fonts",
-    "sfx",
-    "stages"
+    "engine",
 ]
+for name in os.listdir("games"):
+    if os.path.isdir(f"games/{name}") and not name.startswith(".") and name not in ("Screensaver", "Utilities", "FloodLight"):
+        ASSET_DIRS.append(f"games/{name}")
 
 SRC_FILES = [
     "boot.py",
     "code.py",
     "icon.bmp",
-    "metadata.json"
+    "metadata.json",
 ]
 
 def run(cmd):
@@ -114,7 +115,8 @@ def main():
 
             # copy asset contents
             for asset_dir in asset_dirs:
-                shutil.copytree(asset_dir, bundle_dir / asset_dir.name, dirs_exist_ok=True)
+                relpath = str(asset_dir)[len(str(root_dir))+1:]
+                shutil.copytree(asset_dir, bundle_dir / relpath, dirs_exist_ok=True)
 
             # copy src files
             for src_file in SRC_FILES:
