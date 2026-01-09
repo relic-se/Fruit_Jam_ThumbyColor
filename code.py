@@ -231,5 +231,5 @@ while True:
         select(selected_index + 1)
     elif is_just_pressed(BUTTON_A):
         write_argv(f"{ROOT}/code.py", [GAMES[selected_index]])
-        supervisor.set_next_code_file(f"{ROOT}/code.py")
+        supervisor.set_next_code_file(f"{ROOT}/code.py", sticky_on_error=True)
         supervisor.reload()
