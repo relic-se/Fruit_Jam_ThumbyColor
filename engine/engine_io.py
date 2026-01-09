@@ -75,7 +75,7 @@ class Button:
 
     @property
     def is_pressed(self) -> bool:
-        return any(getattr(_gamepad.buttons, x) for x in self._button_names)
+        return any(getattr(_gamepad.buttons, x) for x in self._button_names) or self._check_keys()
 
     @property
     def is_just_pressed(self) -> bool:
