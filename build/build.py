@@ -16,6 +16,7 @@ import requests
 from circup.commands import main as circup_cli
 
 ASSET_DIRS = [
+    "bitmaps",
     "engine",
 ]
 for name in os.listdir("games"):

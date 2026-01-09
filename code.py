@@ -15,6 +15,7 @@ if len(__file__.split("/")[:-1]) > 1:
         sys.path.append(lib_path)
 
 import displayio
+import math
 import os
 import sys
 import supervisor
@@ -24,6 +25,7 @@ import time
 
 from adafruit_argv_file import read_argv, write_argv
 from adafruit_fruitjam.peripherals import request_display_config
+import adafruit_imageload
 from relic_usb_host_gamepad import Gamepad, BUTTON_A, BUTTON_HOME, BUTTON_UP, BUTTON_DOWN, BUTTON_JOYSTICK_UP, BUTTON_JOYSTICK_DOWN
 
 ROOT = "/".join(__file__.split("/")[:-1])
@@ -127,6 +129,24 @@ tilegrid = displayio.TileGrid(
 terminal = Terminal(tilegrid, FONT)
 root_group.append(tilegrid)
 
+# game icon
+default_icon_bmp, default_icon_palette = adafruit_imageload.load("bitmaps/default_icon.bmp")
+default_icon_palette.make_transparent(0)
+
+icon_group = displayio.Group(
+    scale=math.floor((display.width//2)/default_icon_bmp.width),
+    x=display.width*3//4,
+    y=display.height//2,
+)
+root_group.append(icon_group)
+
+icon = displayio.TileGrid(
+    bitmap=default_icon_bmp,
+    pixel_shader=default_icon_palette,
+    x=-default_icon_bmp.width//2,
+    y=-default_icon_bmp.height//2,
+)
+icon_group.append(icon)
 
 # write header and controls
 terminal.write("Thumby Color\n\r", 0, 0)
@@ -146,6 +166,17 @@ def select(index: int) -> None:
             terminal.write("  ", 0, 1 + selected_index)
         selected_index = index
         terminal.write("=>", 0, 1 + selected_index)
+
+        icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
+        try:
+            os.stat(icon_path)
+        except OSError:
+            icon.bitmap = default_icon_bmp
+            icon.pixel_shader = default_icon_palette
+        else:
+            icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
+            icon.bitmap = icon_bmp
+            icon.pixel_shader = icon_palette
 select(0)
 
 # setup input devices
