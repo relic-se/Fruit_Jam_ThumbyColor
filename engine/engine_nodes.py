@@ -233,6 +233,7 @@ class Sprite2DNode(_GroupNode):
             width=1, height=1,
             tile_width=self._texture.width//self._frame_count_x,
             tile_height=self._texture.height//self._frame_count_y,
+            default_tile=(self._frame_current_y*self._frame_count_x)+self._frame_current_x,
         )
         self._tg.x = -self._tg.tile_width//2
         self._tg.y = -self._tg.tile_height//2
