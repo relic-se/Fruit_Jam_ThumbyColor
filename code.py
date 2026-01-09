@@ -121,7 +121,7 @@ class Terminal(terminalio.Terminal):
         self._terminal.write(text)
 
 CHAR_WIDTH, CHAR_HEIGHT = FONT.get_bounding_box()[0:2]
-SCREEN_WIDTH, SCREEN_HEIGHT = display.width // CHAR_WIDTH, display.height // CHAR_HEIGHT
+SCREEN_WIDTH, SCREEN_HEIGHT = display.width // 2 // CHAR_WIDTH, display.height // CHAR_HEIGHT
 
 palette = displayio.Palette(2)
 palette[0] = config.palette_bg if config else 0x000000
