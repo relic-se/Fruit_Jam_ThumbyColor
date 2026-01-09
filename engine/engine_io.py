@@ -15,7 +15,7 @@ _KEY_MAP = {
     "C": relic_usb_host_gamepad.BUTTON_L1,
     "E": relic_usb_host_gamepad.BUTTON_R1,
     "V": relic_usb_host_gamepad.BUTTON_R1,
-    "\x1b": relic_usb_host_gamepad.BUTTON_HOME,
+    "\n": relic_usb_host_gamepad.BUTTON_START,
     "W": relic_usb_host_gamepad.BUTTON_UP,
     "S": relic_usb_host_gamepad.BUTTON_DOWN,
     "A": relic_usb_host_gamepad.BUTTON_LEFT,
@@ -35,7 +35,7 @@ def rumble(intensity: float) -> None:
         _gamepad._device.rumble = intensity
 
 def _tick() -> None:
-    global _keys
+    global _last_keys, _keys
 
     # gamepad
     _gamepad.update()
@@ -94,4 +94,4 @@ A = Button(relic_usb_host_gamepad.BUTTON_A)
 B = Button(relic_usb_host_gamepad.BUTTON_B)
 LB = Button(relic_usb_host_gamepad.BUTTON_L1)
 RB = Button(relic_usb_host_gamepad.BUTTON_R1)
-MENU = Button(relic_usb_host_gamepad.BUTTON_HOME)
+MENU = Button(relic_usb_host_gamepad.BUTTON_START)

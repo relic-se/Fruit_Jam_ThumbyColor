@@ -199,7 +199,7 @@ class _GroupNode(EmptyNode):
 
 class Sprite2DNode(_GroupNode):
 
-    def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 0, frame_count_x: int = 1, frame_count_y = 1, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
+    def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 30, frame_count_x: int = 1, frame_count_y = 1, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
         self._frame_count_x = min(frame_count_x, 1)
         self._frame_count_y = min(frame_count_y, 1)
@@ -307,7 +307,7 @@ class Sprite2DNode(_GroupNode):
         self._frame_time = 0
 
     def tick(self, dt: float) -> None:
-        if self.playing:
+        if self.playing and self._frame_duration:
             self._frame_time += dt
             if self._frame_time >= self._frame_duration:
                 self.frame_current_x += 1
