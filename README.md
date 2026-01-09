@@ -47,7 +47,7 @@ The following applications are excluded from this package:
 | Tetrumb | ❌ _Requires `framebuf`_ |
 | ThumbAtro | ❌ _Requires `engine_animation.Delay`_ |
 | ThumbSweeper | ❌ _Requires `engine_animation.Delay`_ |
-| Thumgeon_II | | ❌ _Requires `engine_physics`_ |
+| Thumgeon_II | ❌ _Requires `engine_physics`_ |
 | Utilities | 🛑 _Hardware incompatibility_ |
 | WallRacerC | ❌ _Requires `framebuf`_ |
 
