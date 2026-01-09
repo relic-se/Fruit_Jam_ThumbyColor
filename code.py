@@ -72,7 +72,10 @@ if args is not None and len(args) > 0:
     engine_main._init()
 
     # run program
-    __import__(f"{ROOT}/games/{name}/main.py")
+    try:
+        __import__(f"{ROOT}/games/{name}/main.py")
+    except KeyboardInterrupt:
+        pass
 
     # reload application
     supervisor.set_next_code_file(f"{ROOT}/code.py")

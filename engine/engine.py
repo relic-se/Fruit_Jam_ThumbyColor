@@ -20,7 +20,9 @@ def tick() -> None:
         target_frames_per_second=_fps_limit,
     )
     engine_io._tick()
-
+    if engine_io._HOME.is_just_pressed:
+        reset()
+    
     # tick nodes
     now = time.monotonic()
     if _timestamp is not None:
@@ -29,4 +31,6 @@ def tick() -> None:
             node.tick(dt)
     _timestamp = now
 
-    frame += 1
+
+def reset(soft_reset: bool = False) -> None:
+    raise KeyboardInterrupt()  # returns to picker

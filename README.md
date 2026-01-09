@@ -12,6 +12,7 @@ All controls are mapped for compatibility with the Thumby Color. Currently, USB 
 | B | B | K / X |
 | LB | L1 | Q / C |
 | RB | R1 | E / V |
+| MENU | Start | Enter |
 | Reload or exit to [Fruit Jam OS](https://github.com/adafruit/Fruit-Jam-OS) | Home | Escape |
 
 ## Compatibility List

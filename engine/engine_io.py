@@ -24,6 +24,7 @@ _KEY_MAP = {
     "\x1b[B": relic_usb_host_gamepad.BUTTON_DOWN,
     "\x1b[D": relic_usb_host_gamepad.BUTTON_LEFT,
     "\x1b[C": relic_usb_host_gamepad.BUTTON_RIGHT,
+    "\x1b": relic_usb_host_gamepad.BUTTON_HOME,
 }
 
 _last_keys = []
@@ -95,3 +96,4 @@ B = Button(relic_usb_host_gamepad.BUTTON_B)
 LB = Button(relic_usb_host_gamepad.BUTTON_L1)
 RB = Button(relic_usb_host_gamepad.BUTTON_R1)
 MENU = Button(relic_usb_host_gamepad.BUTTON_START)
+_HOME = Button(relic_usb_host_gamepad.BUTTON_HOME)
