@@ -396,7 +396,7 @@ class Text2DNode(_GroupNode):
             text=text,
             anchor_point=(0.5, 0.5),
             anchored_position=(0, 0),
-            line_spacing=self._font._line_spacing/self._font.texture._bitmap.height,
+            line_spacing=(self._font.texture._bitmap.height + self._font._line_spacing)/(self._font.texture._bitmap.height - 1),
             color=self._color._rgb888 if color else None,
         )
         self._group.append(self._label)
@@ -432,4 +432,4 @@ class Text2DNode(_GroupNode):
     def line_spacing(self, value: int) -> None:
         self._font._line_spacing = value
         if self._label:
-            self._label.line_spacing = value / self.font.texture._bitmap.height
+            self._label.line_spacing = (self._font.texture._bitmap.height + value) / (self._font.texture._bitmap.height - 1)
