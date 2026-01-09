@@ -40,7 +40,7 @@ The following applications are excluded from this package:
 | Magic8Ball | ❌ _Requires `micropython.mem_info`_ |
 | Monstra | ❌ _Requires `time.ticks_ms`_ |
 | Sand | ❌ _Micropython decorator incompatibility_ |
-| Screensaver | Incompatible with FJOS |
+| Screensaver | 🛑 _Not planned_ |
 | Solitaire | ❌ _Micropython incompatibility, `super().__init__(self, ...`_ |
 | SongOfMorus | 🛑 _Requires 3D rendering_ |
 | Tagged | ❌ _Micropython decorator incompatibility_ |
