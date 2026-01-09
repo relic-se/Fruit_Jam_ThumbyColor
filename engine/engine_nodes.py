@@ -5,7 +5,7 @@ import displayio
 
 from adafruit_display_text.label import Label
 
-from engine_main import _LAYERS, _get_layer
+from engine_main import _LAYERS, _get_layer, _display, _group
 import engine
 from engine_math import Vector2, Vector3, Rectangle
 from engine_resources import TextureResource, FontResource
@@ -113,7 +113,16 @@ class CameraNode(EmptyNode):
         self.viewport = viewport
         self.fov = fov
         self.view_distance = view_distance
-        # TODO: Maybe control root group?
+
+    @property
+    def position(self) -> Vector3:
+        return self._position
+    
+    @position.setter
+    def position(self, value: Vector3|tuple) -> None:
+        self._position = _get_vector3(value)
+        _group.x = _display.width // 2 - self._position.x * _group.scale
+        _group.y = _display.height // 2 - self._position.y * _group.scale
 
 class _GroupNode(EmptyNode):
 

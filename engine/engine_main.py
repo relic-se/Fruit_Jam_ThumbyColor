@@ -30,8 +30,8 @@ def _init() -> None:
     # create root group
     _group = displayio.Group()
     _group.scale = math.floor(min(_display.width, _display.height) / _DISPLAY_SIZE)
-    _group.x = (_display.width - _DISPLAY_SIZE * _group.scale) // 2
-    _group.y = (_display.height - _DISPLAY_SIZE * _group.scale) // 2
+    _group.x = _display.width // 2
+    _group.y = _display.height // 2
     _display.root_group = _group
     _display.auto_refresh = False
     _display.refresh()  # clear screen
