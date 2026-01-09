@@ -239,7 +239,7 @@ class Sprite2DNode(_GroupNode):
 
         if isinstance(self._texture._palette, displayio.ColorConverter) and self._transparent_color:
             try:
-                self._texture._palette.make_transparent(self._transparent_color._rgb888)
+                self._texture._palette.make_transparent(self._transparent_color._rgb565)
             except RuntimeError:  # prevents multiple transparent color error
                 pass
         else:
