@@ -212,6 +212,8 @@ class Sprite2DNode(_GroupNode):
         super().__init__(position, rotation, scale, opacity, layer)
         self._frame_count_x = frame_count_x
         self._frame_count_y = frame_count_y
+        self._frame_current_x = 0
+        self._frame_current_y = 0
         self._tg = None
         self._texture = None
         self._transparent_color = None
@@ -287,19 +289,23 @@ class Sprite2DNode(_GroupNode):
 
     @property
     def frame_current_x(self) -> int:
-        return self._tg[0] % self._frame_count_x if self._frame_count_x else 0
+        return self._frame_current_x
     
     @frame_current_x.setter
     def frame_current_x(self, value: int) -> None:
-        self._tg[0] = (self.frame_current_y * self._frame_count_x) + (value % self._frame_count_x) if self._frame_count_x else 0
+        self._frame_current_x = value % self._frame_count_x if self._frame_count_x else 0
+        if self._tg:
+            self._tg[0] = (self._frame_current_y * self._frame_count_x) + self._frame_current_x if self._frame_count_x else 0
 
     @property
     def frame_current_y(self) -> int:
-        return self._tg[0] // self._frame_count_y if self._frame_count_y else 0
+        return self._frame_current_y
     
     @frame_current_y.setter
     def frame_current_y(self, value: int) -> None:
-        self._tg[0] = (value % self._frame_count_y) * self._frame_count_x + self.frame_current_x if self._frame_count_y else 0
+        self._frame_current_y = value % self._frame_count_y if self._frame_count_y else 0
+        if self._tg:
+            self._tg[0] = self._frame_current_y * self._frame_count_x + self.frame_current_x if self._frame_count_y else 0
     
     @property
     def fps(self) -> float:
