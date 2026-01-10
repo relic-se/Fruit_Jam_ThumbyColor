@@ -11,7 +11,7 @@ import adafruit_imageload
 def _get_filepath(filepath: str) -> str:
     # redirect absolute path to filesystem directory
     if filepath.startswith("/"):
-        filepath = "/" + "/".join(os.getcwd().strip("/").split("/")[:-2] + ["filesystem", filepath.strip("/")])
+        filepath = "/" + "/".join(os.getcwd().strip("/").split("/")[:-2]) + filepath
     return filepath
 
 class TextureResource:
