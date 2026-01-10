@@ -35,6 +35,8 @@ SRC_FILES = [
     "metadata.json",
 ]
 
+# TODO: Process .py files in filesystem/Games to replace `super().__init__(self, ...` with `super().__init__(...`
+
 def run(cmd):
     result = subprocess.run(cmd, shell=True, check=True, capture_output=True)
     return result.stdout.decode('utf-8').strip()

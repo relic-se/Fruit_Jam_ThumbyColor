@@ -29,7 +29,7 @@ The following applications are excluded from this package:
 
 | Game | Reason |
 |------|--------|
-| 2048 | ❌ _Requires `engine_animation.Delay`_ |
+| 2048 | ❌ _Requires `mem_info`_ |
 | 4Connect | ❌ _Requires `engine_nodes.PhysicsRectangle2DNode`_ |
 | BadApple | ❌ _Micropython incompatibility_ |
 | BustAThumb | ❌ _Micropython incompatibility_ |
@@ -38,7 +38,7 @@ The following applications are excluded from this package:
 | ComboPool | ❌ _Requires `engine_nodes.PhysicsRectangle2DNode`_ |
 | Demos | 🛑 _Not planned_ |
 | FloodLight | 🛑 _Hardware incompatibility_ |
-| FroggyRoad | ❌ _Requires `engine_animation.Delay`_ |
+| FroggyRoad | ❌ _Texture rendering issue_ |
 | Magic8Ball | ❌ _Requires `micropython.mem_info`_ |
 | Monstra | ❌ _Requires `time.ticks_ms`_ |
 | Sand | ❌ _Micropython decorator incompatibility_ |
@@ -47,8 +47,8 @@ The following applications are excluded from this package:
 | SongOfMorus | 🛑 _Requires 3D rendering_ |
 | Tagged | ❌ _Micropython decorator incompatibility_ |
 | Tetrumb | ❌ _Requires `framebuf`_ |
-| ThumbAtro | ❌ _Requires `engine_animation.Delay`_ |
-| ThumbSweeper | ❌ _Requires `engine_animation.Delay`_ |
+| ThumbAtro | ❌ _Micropython incompatibility, `super().__init__(self, ...`_ |
+| ThumbSweeper | ❌ _Requires `framebuf`_ |
 | Thumgeon_II | ❌ _Requires `engine_physics`_ |
 | Utilities | 🛑 _Hardware incompatibility_ |
 | WallRacerC | ❌ _Requires `framebuf`_ |
