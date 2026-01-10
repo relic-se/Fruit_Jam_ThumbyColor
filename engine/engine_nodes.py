@@ -364,7 +364,8 @@ class Rectangle2DNode(_GroupNode):
     @color.setter
     def color(self, value: Color|int) -> None:
         self._color = _get_color(value)
-        self._palette[int(self._outline)] = self._color._rgb888
+        if self._color:
+            self._palette[int(self._outline)] = self._color._rgb888
 
     @property
     def width(self) -> int:
@@ -378,7 +379,7 @@ class Rectangle2DNode(_GroupNode):
 
 # TODO: Line2DNode, Circle2DNode - may require adafruit_display_shapes
 
-from  terminalio import FONT  # NOTE: Remove when FontResource is supported
+from terminalio import FONT  # NOTE: Remove when FontResource is supported
 
 class Text2DNode(_GroupNode):
 
