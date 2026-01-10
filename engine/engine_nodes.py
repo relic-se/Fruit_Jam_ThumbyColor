@@ -86,7 +86,7 @@ class EmptyNode:
         return self._position
     
     @position.setter
-    def position(self, value: Vector3|tuple) -> None:
+    def position(self, value: Vector2|Vector3|tuple) -> None:
         self._position = _get_vector3(value)
 
     @property
@@ -94,7 +94,7 @@ class EmptyNode:
         return self._rotation
     
     @rotation.setter
-    def rotation(self, value: Vector3|tuple) -> None:
+    def rotation(self, value: Vector2|Vector3|tuple) -> None:
         self._rotation = _get_vector3(value)
 
     def _set_layer(self, value: int) -> None:
@@ -110,7 +110,7 @@ class EmptyNode:
 
 class CameraNode(EmptyNode):
 
-    def __init__(self, position: Vector3|tuple, zoom: float = 1, viewport: Rectangle = None, rotation: Vector3|tuple = None, fov: float = 0, view_distance: float = 0, layer: int = 0):
+    def __init__(self, position: Vector2|Vector3|tuple = None, zoom: float = 1, viewport: Rectangle = None, rotation: Vector3|tuple = None, fov: float = 0, view_distance: float = 0, layer: int = 0):
         super().__init__(position, rotation, layer)
         self.zoom = zoom
         self.viewport = viewport
@@ -122,14 +122,14 @@ class CameraNode(EmptyNode):
         return self._position
     
     @position.setter
-    def position(self, value: Vector3|tuple) -> None:
+    def position(self, value: Vector2|Vector3|tuple) -> None:
         self._position = _get_vector3(value)
         _layer_group.x = -self._position.x * _layer_group.scale
         _layer_group.y = -self._position.y * _layer_group.scale
 
 class _GroupNode(EmptyNode):
 
-    def __init__(self, position: Vector2, rotation: float = None, scale: Vector2 = None, opacity: float = 1, layer: int = 0):
+    def __init__(self, position: Vector2|tuple = None, rotation: float = None, scale: Vector2 = None, opacity: float = 1, layer: int = 0):
         self._parent = None
         self._group = displayio.Group()
         super().__init__(position, rotation, layer)
@@ -206,7 +206,7 @@ class _GroupNode(EmptyNode):
 
 class Sprite2DNode(_GroupNode):
 
-    def __init__(self, position: Vector2 = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 30, frame_count_x: int = None, frame_count_y: int = None, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
+    def __init__(self, position: Vector2|tuple = None, texture: TextureResource = None, transparent_color: Color|int = None, fps: float = 30, frame_count_x: int = None, frame_count_y: int = None, rotation: float = None, scale: Vector2|tuple = None, opacity: float = 1, playing: bool = True, loop: bool = True, layer: int = 0):
         self._frame_count_x = frame_count_x
         self._frame_count_y = frame_count_y
         self._frame_current_x = 0
@@ -337,7 +337,7 @@ class Sprite2DNode(_GroupNode):
         
 class Rectangle2DNode(_GroupNode):
 
-    def __init__(self, position: Vector2|tuple, width: float, height: float, color: Color, opacity: float = 1, outline: bool = False, rotation: float = 0, scale: Vector2|tuple|float|int = 1, layer: int = 0):
+    def __init__(self, position: Vector2|tuple = None, width: float = 1, height: float = 1, color: Color = None, opacity: float = 1, outline: bool = False, rotation: float = 0, scale: Vector2|tuple|float|int = 1, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
         self._outline = outline
         
@@ -382,7 +382,7 @@ from  terminalio import FONT  # NOTE: Remove when FontResource is supported
 
 class Text2DNode(_GroupNode):
 
-    def __init__(self, position: Vector2|tuple, font: FontResource, text: str = "", rotation: float = 0, scale: Vector2|tuple|float|int = 1, opacity: float = 1, letter_spacing: int = 1, line_spacing: int = 1, color: Color|int = None, layer: int = 0):
+    def __init__(self, position: Vector2|tuple = None, font: FontResource = None, text: str = "", rotation: float = 0, scale: Vector2|tuple|float|int = 1, opacity: float = 1, letter_spacing: int = 1, line_spacing: int = 1, color: Color|int = None, layer: int = 0):
         super().__init__(position, rotation, scale, opacity, layer)
 
         self._label = None  # for setters
@@ -396,7 +396,7 @@ class Text2DNode(_GroupNode):
             text=text,
             anchor_point=(0.5, 0.5),
             anchored_position=(0, 0),
-            line_spacing=(self._font.texture._bitmap.height + self._font._line_spacing)/(self._font.texture._bitmap.height - 1),
+            line_spacing=(self._font.texture._bitmap.height + self._line_spacing)/(self._font.texture._bitmap.height - 1) if self._font else 1,
             color=self._color._rgb888 if color else None,
         )
         self._group.append(self._label)
@@ -426,10 +426,12 @@ class Text2DNode(_GroupNode):
 
     @property
     def line_spacing(self) -> int:
-        return self._font._line_spacing
+        return self._line_spacing
     
     @line_spacing.setter
     def line_spacing(self, value: int) -> None:
-        self._font._line_spacing = value
-        if self._label:
+        self._line_spacing = value
+        if self._font:
+            self._font._line_spacing = value
+        if self._label and self._font:
             self._label.line_spacing = (self._font.texture._bitmap.height + value) / (self._font.texture._bitmap.height - 1)

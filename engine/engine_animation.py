@@ -135,4 +135,38 @@ class Tween(EmptyNode):
     def finished(self) -> bool:
         return self._finished
 
-# TODO: Delay class
+class Delay(EmptyNode):
+
+    def __init__(self):
+        super().__init__()
+
+        self._delay = None
+        self._time = None
+        self._finished = False
+        self.after = None
+
+    def start(self, delay: float, after: function):
+        self.delay = delay
+        self._time = 0
+        self._finished = False
+        self._after = after
+
+    def tick(self, dt: float) -> None:
+        if not self._finished and self._delay and self.after and self._time:
+            self._time += dt
+            if self._time >= self._delay:
+                self._finished = True
+                if callable(self.after):
+                    self.after()
+
+    @property
+    def delay(self) -> float:
+        return self._delay * 1000
+    
+    @delay.setter
+    def delay(self, value: float) -> None:
+        self._delay = value / 1000
+
+    @property
+    def finished(self) -> bool:
+        return self._finished
