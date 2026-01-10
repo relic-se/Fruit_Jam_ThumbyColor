@@ -22,10 +22,11 @@ ALLOWED_GAMES = [
 ASSET_DIRS = [
     "bitmaps",
     "engine",
+    "filesystem/system",
 ]
-for name in os.listdir("games"):
-    if os.path.isdir(f"games/{name}") and not name.startswith(".") and name in ALLOWED_GAMES:
-        ASSET_DIRS.append(f"games/{name}")
+for name in os.listdir("filesystem/Games"):
+    if os.path.isdir(f"filesystem/Games/{name}") and not name.startswith(".") and name in ALLOWED_GAMES:
+        ASSET_DIRS.append(f"filesystem/Games/{name}")
 
 SRC_FILES = [
     "boot.py",

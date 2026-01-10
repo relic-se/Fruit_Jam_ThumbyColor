@@ -4,13 +4,20 @@
 import audiocore
 from displayio import Bitmap
 from fontio import Glyph
+import os
 
 import adafruit_imageload
+
+def _get_filepath(filepath: str) -> str:
+    # redirect absolute path to filesystem directory
+    if filepath.startswith("/"):
+        filepath = "/" + "/".join(os.getcwd().strip("/").split("/")[:-2] + ["filesystem", filepath.strip("/")])
+    return filepath
 
 class TextureResource:
 
     def __init__(self, filepath: str):
-        self._bitmap, self._palette = adafruit_imageload.load(filepath)
+        self._bitmap, self._palette = adafruit_imageload.load(_get_filepath(filepath))
 
     @property
     def width(self) -> int:
@@ -23,7 +30,7 @@ class TextureResource:
 class WaveSoundResource:
 
     def __init__(self, filepath: str):
-        self._wave = audiocore.WaveFile(filepath)
+        self._wave = audiocore.WaveFile(_get_filepath(filepath))
 
     def sample_rate(self) -> int:
         return self._wave.sample_rate

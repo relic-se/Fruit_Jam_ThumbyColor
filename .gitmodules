@@ -1,3 +1,3 @@
 [submodule "games"]
-	path = games
+	path = filesystem/Games
 	url = https://github.com/TinyCircuits/TinyCircuits-Thumby-Color-Games
