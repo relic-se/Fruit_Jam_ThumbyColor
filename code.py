@@ -41,10 +41,10 @@ def timed_reload(message: str) -> None:
 
 # query games
 GAMES = []
-for name in os.listdir("games"):
+for name in os.listdir(f"{ROOT}/filesystem/Games"):
     if not name.startswith("."):
         try:
-            os.stat(f"{ROOT}/games/{name}/main.py")
+            os.stat(f"{ROOT}/filesystem/Games/{name}/main.py")
         except OSError:
             pass
         else:
@@ -64,7 +64,7 @@ if args is not None and len(args) > 0:
     sys.path.append(f"{ROOT}/engine")
 
     # change cwd
-    os.chdir(f"{ROOT}/games/{name}")
+    os.chdir(f"{ROOT}/filesystem/Games/{name}")
 
     # initialize saves dir
     import engine_save
@@ -76,7 +76,7 @@ if args is not None and len(args) > 0:
 
     # run program
     try:
-        __import__(f"{ROOT}/games/{name}/main.py")
+        __import__(f"{ROOT}/filesystem/Games/{name}/main.py")
     except SystemExit:
         pass
     except Exception as e:
@@ -172,7 +172,7 @@ def select(index: int) -> None:
     selected_index = index % len(GAMES)
     terminal.write("=>", 0, 1 + selected_index)
 
-    icon_path = f"{ROOT}/games/{GAMES[selected_index]}/icon.bmp"
+    icon_path = f"{ROOT}/filesystem/Games/{GAMES[selected_index]}/icon.bmp"
     try:
         os.stat(icon_path)
     except OSError:
