@@ -22,6 +22,7 @@ ALLOWED_GAMES = [
 ASSET_DIRS = [
     "bitmaps",
     "engine",
+    "filesystem",
 ]
 for name in os.listdir("games"):
     if os.path.isdir(f"games/{name}") and not name.startswith(".") and name in ALLOWED_GAMES:
