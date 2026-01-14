@@ -42,9 +42,21 @@ EASE_BOUNCE_IN = const(29)
 EASE_BOUNCE_OUT = const(30)
 EASE_BOUNCE_IN_OUT = const(31)
 
-class Tween(EmptyNode):
+_C5 = (2 * math.pi) / 4.5
 
-    C5 = (2 * math.pi) / 4.5
+def _ease(value: float, ease_type: int = EASE_LINEAR) -> float:
+    # TODO: EASE_ELAST_OUT, EASE_BACK_IN
+
+    if ease_type == EASE_ELAST_IN_OUT:
+        if value < 0.5:
+            return -(pow(2, 20 * value - 10) * math.sin((20 * value - 11.125) * _C5)) / 2
+        else:
+            return (pow(2, -20 * value + 10) * math.sin((20 * value - 11.125) * _C5)) / 2 + 1
+    
+    else:  # EASE_LINEAR
+        return value
+
+class Tween(EmptyNode):
 
     def __init__(self):
         super().__init__()
@@ -102,14 +114,6 @@ class Tween(EmptyNode):
         self._position = 0
         self._playing = True
         self._finished = False
-
-    def _ease(self, value: float) -> float:
-        if self.ease_type == EASE_ELAST_IN_OUT:
-            if value < 0.5:
-                return -(pow(2, 20 * value - 10) * math.sin((20 * value - 11.125) * self.C5)) / 2
-            else:
-                return (pow(2, -20 * value + 10) * math.sin((20 * value - 11.125) * self.C5)) / 2 + 1
-        return value  # EASE_LINEAR
     
     def _tween(self, position: float, start: float, end: float) -> float:
         return (end - start) * position + start
@@ -120,7 +124,7 @@ class Tween(EmptyNode):
             if self._position >= 1:
                 self.stop()
             else:
-                position = self._ease(self._position)
+                position = _ease(self._position, self.ease_type)
                 if isinstance(self._end, tuple):
                     value = (
                         self._tween(position, self._start[0], self._end[0]),
