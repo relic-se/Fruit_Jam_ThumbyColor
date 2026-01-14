@@ -21,6 +21,7 @@ All controls are mapped for compatibility with the Thumby Color. Currently, USB 
 
 | Game | Status |
 |------|------------|
+| 2048 | ⚠️ _Playable, saving will result in read-only filesystem error_ |
 | PuzzleAttack | ⚠️ _Playable, saves not working_ |
 
 ### Excluded Applications
@@ -29,7 +30,6 @@ The following applications are excluded from this package:
 
 | Game | Reason |
 |------|--------|
-| 2048 | ❌ _Requires `mem_info`_ |
 | 4Connect | ❌ _Requires `engine_nodes.PhysicsRectangle2DNode`_ |
 | BadApple | ❌ _Micropython incompatibility_ |
 | BustAThumb | ❌ _Micropython incompatibility_ |

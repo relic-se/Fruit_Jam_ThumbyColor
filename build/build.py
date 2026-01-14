@@ -16,6 +16,7 @@ import requests
 from circup.commands import main as circup_cli
 
 ALLOWED_GAMES = [
+    "2048",
     "PuzzleAttack"
 ]
 
