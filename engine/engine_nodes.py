@@ -199,6 +199,8 @@ class _GroupNode(EmptyNode):
     
     @opacity.setter
     def opacity(self, value: float) -> None:
+        if value is None:
+            value = 0
         self._opacity = value
         self._group.hidden = self._opacity <= 0.01
 
