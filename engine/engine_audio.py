@@ -4,7 +4,7 @@
 import audiomixer
 
 import engine_main
-import engine_resources
+from engine_resources import WaveSoundResource, RTTTLSoundResource
 
 _CHANNELS = 4
 
@@ -28,15 +28,17 @@ class AudioChannel:
         self._gain = 1
         self._source = None
 
-    def play(self, sound_resource: engine_resources.WaveSoundResource, loop: bool = False) -> None:
+    def play(self, sound_resource: WaveSoundResource|RTTTLSoundResource, loop: bool = False) -> None:
         self._source = sound_resource
-        _mixer.voice[self._index].play(sound_resource._wave, loop=loop)
+        if isinstance(sound_resource, WaveSoundResource):
+            _mixer.voice[self._index].play(sound_resource._wave, loop=loop)
+        # TODO: RTTTL playback; synthio midi?
 
     def stop(self) -> None:
         _mixer.voice[self._index].stop()
 
     @property
-    def source(self) -> engine_resources.WaveSoundResource:
+    def source(self) -> WaveSoundResource|RTTTLSoundResource:
         if self._source and not _mixer.voice[self._index].playing:
             self._source = None
         return self._source
@@ -73,7 +75,7 @@ class AudioChannel:
 for i in range(_CHANNELS):
     AudioChannel()
 
-def play(sound_resource: engine_resources.WaveSoundResource, channel_index: int, loop: bool = False) -> AudioChannel:
+def play(sound_resource: WaveSoundResource|RTTTLSoundResource, channel_index: int, loop: bool = False) -> AudioChannel:
     if channel_index < 0 or channel_index >= _CHANNELS:
         raise ValueError("Invalid channel")
     _channels[channel_index].play(sound_resource, loop=loop)

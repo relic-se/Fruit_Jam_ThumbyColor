@@ -7,6 +7,7 @@ from fontio import Glyph
 import os
 
 import adafruit_imageload
+import adafruit_rtttl
 
 def _get_filepath(filepath: str) -> str:
     # redirect absolute path to filesystem directory
@@ -109,3 +110,42 @@ class FontResource:
                 )
                 self._glyphs[index] = glyph
                 return glyph
+
+class RTTTLSoundResource:
+
+    def __init__(self, filepath: str):
+        filepath = _get_filepath(filepath)
+        with open(filepath, "r") as f:
+            data = f.read()
+        _, defaults, tune = data.lower().split(":")
+
+        # get defaults
+        self._duration = 4
+        self._octave = 6
+        self._tempo = 63
+
+        for default in defaults.split(","):
+            key, value = default.split("=")
+            value = int(value)
+            if key == "d":
+                self._duration = value
+            elif key == "o":
+                self._octave = value
+            elif key == "b":
+                self._tempo = value
+
+        # read notes
+        self._data = []
+        for note in tune.split(","):
+            note_frequency, note_duration = adafruit_rtttl._parse_note(note, self._duration, self._octave)
+            if note_frequency is None:
+                note_frequency = 0
+            self._data.append((note_frequency, 4 / note_duration * 60 / self._tempo))
+    
+    @property
+    def tempo(self) -> int:
+        return self._tempo
+    
+    @property
+    def data(self) -> bytearray:
+        pass
