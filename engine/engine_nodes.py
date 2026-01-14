@@ -199,6 +199,8 @@ class _GroupNode(EmptyNode):
     
     @opacity.setter
     def opacity(self, value: float) -> None:
+        if value is None:
+            value = 0
         self._opacity = value
         self._group.hidden = self._opacity <= 0.01
 
@@ -244,9 +246,9 @@ class Sprite2DNode(_GroupNode):
                 self._texture._palette.make_transparent(self._transparent_color._rgb565)
             except RuntimeError:  # prevents multiple transparent color error
                 pass
-        else:
-            for i in len(self._texture._palette):
-                if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb88:
+        elif isinstance(self._texture._palette, displayio.Palette) and self._transparent_color:
+            for i in range(len(self._texture._palette)):
+                if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb888:
                     self._texture._palette.make_transparent(i)
                 else:
                     self._texture._palette.make_opaque(i)
@@ -327,6 +329,13 @@ class Sprite2DNode(_GroupNode):
             self._make_tg()
 
     def tick(self, dt: float) -> None:
+        if not self._tg:
+            if not self._frame_count_x:
+                self._frame_count_x = 1
+            if not self._frame_count_y:
+                self._frame_count_y = 1
+            self._make_tg()
+            
         if self.playing and self._frame_duration:
             self._frame_time += dt
             if self._frame_time >= self._frame_duration:
@@ -406,6 +415,10 @@ class Text2DNode(_GroupNode):
     @property
     def font(self) -> FontResource:
         return self._font
+    
+    @font.setter
+    def font(self, value: FontResource) -> None:
+        self._font = value  # NOTE: not supported
 
     @property
     def color(self) -> Color:

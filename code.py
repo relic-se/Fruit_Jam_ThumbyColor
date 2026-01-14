@@ -146,13 +146,28 @@ icon_group = displayio.Group(
 )
 root_group.append(icon_group)
 
-icon = displayio.TileGrid(
-    bitmap=default_icon_bmp,
-    pixel_shader=default_icon_palette,
-    x=-default_icon_bmp.width//2,
-    y=-default_icon_bmp.height//2,
-)
-icon_group.append(icon)
+icon = None
+def set_icon(bitmap: displayio.Bitmap = None, palette: displayio.Palette|displayio.ColorConverter = None) -> None:
+    global icon
+
+    if bitmap is None:
+        bitmap = default_icon_bmp
+        palette = default_icon_palette
+    
+    if icon is None or bitmap.width != icon.tile_width or bitmap.height != icon.tile_height:
+        if icon is not None:
+            icon_group.remove(icon)
+            del icon
+        icon = displayio.TileGrid(
+            bitmap=bitmap,
+            pixel_shader=palette,
+            x=-bitmap.width//2,
+            y=-bitmap.height//2,
+        )
+        icon_group.append(icon)
+    else:
+        icon.bitmap = bitmap
+        icon.pixel_shader = palette
 
 # write header and controls
 terminal.write("Thumby Color\n\r", 0, 0)
@@ -166,7 +181,7 @@ for i, name in enumerate(GAMES):
 selected_index = None
 def select(index: int) -> None:
     global selected_index
-    if selected_index:
+    if selected_index is not None:
         terminal.write("  ", 0, 1 + selected_index)
     
     selected_index = index % len(GAMES)
@@ -176,16 +191,10 @@ def select(index: int) -> None:
     try:
         os.stat(icon_path)
     except OSError:
-        icon.bitmap = default_icon_bmp
-        icon.pixel_shader = default_icon_palette
+        set_icon()  # use default
     else:
         icon_bmp, icon_palette = adafruit_imageload.load(icon_path)
-        if icon_bmp.width == icon.tile_width and icon_bmp.height == icon.tile_height:
-            icon.bitmap = icon_bmp
-            icon.pixel_shader = icon_palette
-        else:
-            icon.bitmap = default_icon_bmp
-            icon.pixel_shader = default_icon_palette
+        set_icon(icon_bmp, icon_palette)
 select(0)
 
 # setup input devices

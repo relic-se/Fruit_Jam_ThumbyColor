@@ -16,7 +16,7 @@ def _get_filepath(filepath: str) -> str:
 
 class TextureResource:
 
-    def __init__(self, filepath: str):
+    def __init__(self, filepath: str, in_ram: bool = False, color: int = None, bit_depth: int = None):  # NOTE: We're not respecting the options here at the moment
         self._bitmap, self._palette = adafruit_imageload.load(_get_filepath(filepath))
 
     @property

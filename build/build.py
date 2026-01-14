@@ -14,8 +14,10 @@ import zipfile
 
 import requests
 from circup.commands import main as circup_cli
+from PIL import Image
 
 ALLOWED_GAMES = [
+    "2048",
     "PuzzleAttack"
 ]
 
@@ -40,6 +42,8 @@ MICROPYTHON_MAP = {
     "super().__init__(self)": "super().__init__()",
     "@micropython.native": "",
     "@micropython.viper": "",
+    "from micropython import mem_info": "from compat import mem_info",
+    "from time import ticks_ms": "from supervisor import ticks_ms",
 }
 
 def run(cmd):
@@ -134,10 +138,11 @@ def main():
             for src_file in SRC_FILES:
                 shutil.copyfile(root_dir / src_file, bundle_dir / src_file, follow_symlinks=False)
 
-            # fix known micropython incompatibilities in game source files
-            print("Processing micropython files...")
             games_dir = bundle_dir / "filesystem/Games"
             if games_dir.exists() and games_dir.is_dir():
+
+                # fix known micropython incompatibilities in game source files
+                print("Processing micropython files...")
                 for path in games_dir.glob("**/*.py"):
                     with open(path, "r") as f:
                         content = f.read()
@@ -155,6 +160,16 @@ def main():
                                 path_str = "/" + "/".join(path.parts[i+1:])
                                 break
                         print(f"Fixed {count} instances in {path_str}")
+
+                # force all bitmap images to use indexed palette
+                print("Processing bitmap files...")
+                count = 0
+                for path in games_dir.glob("**/*.bmp"):
+                    img = Image.open(path)
+                    img = img.convert("P", palette=Image.ADAPTIVE, colors=256)
+                    img.save(path)
+                    count += 1
+                print(f"Converted {count} images")
 
             # install required libs
             shutil.copyfile(build_dir / "boot_out.txt", bundle_dir / "boot_out.txt")

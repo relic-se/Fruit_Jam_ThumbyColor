@@ -53,31 +53,40 @@ class Tween(EmptyNode):
         self.loop_type = ONE_SHOT  # TODO: looping
         self.ease_type = EASE_LINEAR
 
+        self._object = None
+        self._attribute_name = ""
         self._start = None
         self._end = None
         self._position = None
         self._playing = False
         self._finished = False
-        self._after = None
+        self.after = None
 
     def start(self, object: object, attribute_name: str, start: float|tuple, end: float|tuple, duration: int, speed: float = None, loop_type: int = ONE_SHOT, ease_type: int = EASE_LINEAR) -> None:
         # TODO: speed?
         self._object = object
         self._attribute_name = attribute_name
-        self._start = start
-        self._end = end
+        if start is None and self._object:
+            self._start = getattr(self._object, self._attribute_name)
+        else:
+            self._start = start if start is not None else 0
+        self._end = end if end is not None else 0
         self.duration = duration
         self.loop_type = loop_type
         self.ease_type = ease_type
         self.restart()
 
-    def end(self) -> None:
-        setattr(self._object, self._attribute_name, self._end)
+    def stop(self) -> None:
+        if self._object:
+            setattr(self._object, self._attribute_name, self._end)
         self._position = 1
         self._playing = False
         self._finished = True
-        if self._after and self.loop_type is ONE_SHOT:
-            self._after.restart()
+        if self.after and self.loop_type is ONE_SHOT:
+            if isinstance(self.after, Tween):
+                self.after.restart()
+            elif callable(self.after):
+                self.after()
 
     def pause(self) -> None:
         if not self._finished:
@@ -88,7 +97,8 @@ class Tween(EmptyNode):
             self._playing = True
 
     def restart(self) -> None:
-        setattr(self._object, self._attribute_name, self._start)
+        if self._object:
+            setattr(self._object, self._attribute_name, self._start)
         self._position = 0
         self._playing = True
         self._finished = False
@@ -108,7 +118,7 @@ class Tween(EmptyNode):
         if self._playing and self._duration > 0:
             self._position += dt / self._duration
             if self._position >= 1:
-                self.end()
+                self.stop()
             else:
                 position = self._ease(self._position)
                 if isinstance(self._end, tuple):
@@ -118,10 +128,8 @@ class Tween(EmptyNode):
                     )
                 else:
                     value = self._tween(position, self._start, self._end)
-                setattr(self._object, self._attribute_name, value)
-
-    def after(self, tween: Tween) -> None:
-        self._after = tween
+                if self._object:
+                    setattr(self._object, self._attribute_name, value)
 
     @property
     def duration(self) -> int:
@@ -149,10 +157,10 @@ class Delay(EmptyNode):
         self.delay = delay
         self._time = 0
         self._finished = False
-        self._after = after
+        self.after = after
 
     def tick(self, dt: float) -> None:
-        if not self._finished and self._delay and self.after and self._time:
+        if self._finished is False and self._delay is not None and self._delay > 0 and self._time is not None:
             self._time += dt
             if self._time >= self._delay:
                 self._finished = True

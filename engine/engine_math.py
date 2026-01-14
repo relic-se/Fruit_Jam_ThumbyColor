@@ -59,6 +59,9 @@ class Vector3:
             raise NotImplementedError()
         return self.x == x and self.y == y and self.z == z
     
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y}, {self.z})"
+    
 class Vector2:
 
     def __init__(self, x: float, y: float):
@@ -109,6 +112,9 @@ class Vector2:
         else:
             raise NotImplementedError()
         return self.x == x and self.y == y
+    
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y})"
 
 class Rectangle:
 

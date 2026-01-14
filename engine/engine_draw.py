@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Cooper Dalrymple (@relic-se)
 #
 # SPDX-License-Identifier: GPLv3
-import engine_main
+from displayio import TileGrid
+
+from engine_main import _bg_group, _bg_palette
 from engine_resources import TextureResource
 
 class Color:
@@ -68,7 +70,13 @@ violet = Color(0x915C)
 def set_background_color(background_color: Color|int) -> None:
     if isinstance(background_color, int):
         background_color = Color(background_color)
-    engine_main._bg_palette[0] = background_color._rgb888
+    _bg_palette[0] = background_color._rgb888
 
 def set_background(background: TextureResource) -> None:
-    pass  # TODO
+    # remove everything but the background color
+    while len(_bg_group) > 1:
+        _bg_group.pop()
+
+    _bg_group.append(TileGrid(
+        bitmap=background._bitmap, pixel_shader=background._palette,
+    ))
