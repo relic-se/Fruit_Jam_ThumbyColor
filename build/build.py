@@ -40,6 +40,7 @@ MICROPYTHON_MAP = {
     "super().__init__(self)": "super().__init__()",
     "@micropython.native": "",
     "@micropython.viper": "",
+    "from micropython import mem_info": "from compat import mem_info",
 }
 
 def run(cmd):
