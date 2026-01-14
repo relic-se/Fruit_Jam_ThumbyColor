@@ -71,7 +71,7 @@ class Tween(EmptyNode):
         self.ease_type = ease_type
         self.restart()
 
-    def end(self) -> None:
+    def stop(self) -> None:
         setattr(self._object, self._attribute_name, self._end)
         self._position = 1
         self._playing = False
@@ -108,7 +108,7 @@ class Tween(EmptyNode):
         if self._playing and self._duration > 0:
             self._position += dt / self._duration
             if self._position >= 1:
-                self.end()
+                self.stop()
             else:
                 position = self._ease(self._position)
                 if isinstance(self._end, tuple):
