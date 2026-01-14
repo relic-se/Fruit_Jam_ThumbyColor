@@ -1,2 +1,3 @@
 circup
+Pillow
 requests
