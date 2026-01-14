@@ -154,10 +154,10 @@ class Delay(EmptyNode):
         self.delay = delay
         self._time = 0
         self._finished = False
-        self._after = after
+        self.after = after
 
     def tick(self, dt: float) -> None:
-        if not self._finished and self._delay and self.after and self._time:
+        if self._finished is False and self._delay is not None and self._delay > 0 and self._time is not None:
             self._time += dt
             if self._time >= self._delay:
                 self._finished = True
