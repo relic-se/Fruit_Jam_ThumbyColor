@@ -66,7 +66,10 @@ class Tween(EmptyNode):
         # TODO: speed?
         self._object = object
         self._attribute_name = attribute_name
-        self._start = start if start is not None else 0
+        if start is None and self._object:
+            self._start = getattr(self._object, self._attribute_name)
+        else:
+            self._start = start if start is not None else 0
         self._end = end if end is not None else 0
         self.duration = duration
         self.loop_type = loop_type
