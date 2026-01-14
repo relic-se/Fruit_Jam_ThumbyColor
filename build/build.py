@@ -44,6 +44,7 @@ MICROPYTHON_MAP = {
     "@micropython.viper": "",
     "from micropython import mem_info": "from compat import mem_info",
     "from time import ticks_ms": "from supervisor import ticks_ms",
+    "import framebuf": "import adafruit_framebuf",
 }
 
 def run(cmd):
