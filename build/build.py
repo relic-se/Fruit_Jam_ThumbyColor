@@ -172,6 +172,10 @@ def main():
                     count += 1
                 print(f"Converted {count} images")
 
+                # remove video files
+                for path in games_dir.glob("**/*.mp4"):
+                    os.remove(path)
+
             # install required libs
             shutil.copyfile(build_dir / "boot_out.txt", bundle_dir / "boot_out.txt")
             replace_tags(bundle_dir / "boot_out.txt", {
