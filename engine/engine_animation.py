@@ -53,6 +53,8 @@ class Tween(EmptyNode):
         self.loop_type = ONE_SHOT  # TODO: looping
         self.ease_type = EASE_LINEAR
 
+        self._object = None
+        self._attribute_name = ""
         self._start = None
         self._end = None
         self._position = None
@@ -72,7 +74,8 @@ class Tween(EmptyNode):
         self.restart()
 
     def stop(self) -> None:
-        setattr(self._object, self._attribute_name, self._end)
+        if self._object:
+            setattr(self._object, self._attribute_name, self._end)
         self._position = 1
         self._playing = False
         self._finished = True
@@ -88,7 +91,8 @@ class Tween(EmptyNode):
             self._playing = True
 
     def restart(self) -> None:
-        setattr(self._object, self._attribute_name, self._start)
+        if self._object:
+            setattr(self._object, self._attribute_name, self._start)
         self._position = 0
         self._playing = True
         self._finished = False
@@ -118,7 +122,8 @@ class Tween(EmptyNode):
                     )
                 else:
                     value = self._tween(position, self._start, self._end)
-                setattr(self._object, self._attribute_name, value)
+                if self._object:
+                    setattr(self._object, self._attribute_name, value)
 
     def after(self, tween: Tween) -> None:
         self._after = tween
