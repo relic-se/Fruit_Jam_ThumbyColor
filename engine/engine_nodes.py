@@ -246,9 +246,9 @@ class Sprite2DNode(_GroupNode):
                 self._texture._palette.make_transparent(self._transparent_color._rgb565)
             except RuntimeError:  # prevents multiple transparent color error
                 pass
-        else:
-            for i in len(self._texture._palette):
-                if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb88:
+        elif isinstance(self._texture._palette, displayio.Palette) and self._transparent_color:
+            for i in range(len(self._texture._palette)):
+                if self._transparent_color and self._texture._palette[i] == self._transparent_color._rgb888:
                     self._texture._palette.make_transparent(i)
                 else:
                     self._texture._palette.make_opaque(i)
