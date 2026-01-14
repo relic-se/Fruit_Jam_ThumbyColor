@@ -181,7 +181,7 @@ for i, name in enumerate(GAMES):
 selected_index = None
 def select(index: int) -> None:
     global selected_index
-    if selected_index:
+    if selected_index is not None:
         terminal.write("  ", 0, 1 + selected_index)
     
     selected_index = index % len(GAMES)
