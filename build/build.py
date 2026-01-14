@@ -38,6 +38,8 @@ SRC_FILES = [
 MICROPYTHON_MAP = {
     "super().__init__(self, ": "super().__init__(",
     "super().__init__(self)": "super().__init__()",
+    "@micropython.native": "",
+    "@micropython.viper": "",
 }
 
 def run(cmd):
