@@ -16,8 +16,12 @@ def _get_filepath(filepath: str) -> str:
 
 class TextureResource:
 
-    def __init__(self, filepath: str, in_ram: bool = False, color: int = None, bit_depth: int = None):  # NOTE: We're not respecting the options here at the moment
-        self._bitmap, self._palette = adafruit_imageload.load(_get_filepath(filepath))
+    def __init__(self, width: str|int, height: bool|int = False, color: int = None, bit_depth: int = None):  # NOTE: We're not respecting the options here at the moment
+        if isinstance(width, str):
+            self._bitmap, self._palette = adafruit_imageload.load(_get_filepath(width))
+            self.data = None
+        else:
+            self.data = bytearray(width * height * 2)  # 16-bit RGB565
 
     @property
     def width(self) -> int:
