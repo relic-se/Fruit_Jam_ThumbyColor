@@ -50,10 +50,7 @@ def _init() -> None:
     _bg_group.append(_bg_tg)
 
     # setup layers
-    _layer_group = displayio.Group(
-        x=-_DISPLAY_SIZE//2,
-        y=-_DISPLAY_SIZE//2,
-    )
+    _layer_group = displayio.Group()
     _root_group.append(_layer_group)
     _layers = {}
 
