@@ -406,6 +406,10 @@ class Text2DNode(_GroupNode):
     @property
     def font(self) -> FontResource:
         return self._font
+    
+    @font.setter
+    def font(self, value: FontResource) -> None:
+        self._font = value  # NOTE: not supported
 
     @property
     def color(self) -> Color:
