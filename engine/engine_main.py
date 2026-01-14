@@ -11,7 +11,7 @@ _DISPLAY_SIZE = 128
 _LAYERS = 128
 
 def _init() -> None:
-    global _config, _display, _root_group, _layer_group, _layers, _peripherals, _bg_palette
+    global _config, _display, _root_group, _layer_group, _layers, _peripherals, _bg_group, _bg_palette
 
     # get Fruit Jam OS config if available
     try:
@@ -37,11 +37,14 @@ def _init() -> None:
     _display.refresh()  # clear screen
 
     # setup background
+    _bg_group = displayio.Group()
+    _root_group.append(_bg_group)
+
     _bg_bitmap = displayio.Bitmap(_DISPLAY_SIZE, _DISPLAY_SIZE, 1)
     _bg_palette = displayio.Palette(1)
     _bg_palette[0] = 0x000000
     _bg_tg = displayio.TileGrid(bitmap=_bg_bitmap, pixel_shader=_bg_palette)
-    _root_group.append(_bg_tg)
+    _bg_group.append(_bg_tg)
 
     # setup layers
     _layer_group = displayio.Group()
