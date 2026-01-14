@@ -35,19 +35,24 @@ SRC_FILES = [
     "metadata.json",
 ]
 
-# TODO: Process .py files in filesystem/Games to replace `super().__init__(self, ...` with `super().__init__(...`
+MICROPYTHON_MAP = {
+    "super().__init__(self, ": "super().__init__(",
+    "super().__init__(self)": "super().__init__()",
+    "@micropython.native": "",
+    "@micropython.viper": "",
+}
 
 def run(cmd):
     result = subprocess.run(cmd, shell=True, check=True, capture_output=True)
     return result.stdout.decode('utf-8').strip()
 
-def get_latest_repository_release_assets(name:str|dict) -> list:
+def get_latest_repository_release_assets(name: str|dict) -> list:
     request_url = "https://api.github.com/repos/{}/releases/latest".format(name)
     release_response = requests.get(request_url, allow_redirects=True)
     release_data = release_response.json()
     return release_data["assets"]
 
-def replace_tags(file:Path, data:dict) -> None:
+def replace_tags(file: Path, data: dict) -> None:
     with open(file, "r") as f:
         contents = f.read()
     for key, value in data.items():
@@ -128,6 +133,28 @@ def main():
             # copy src files
             for src_file in SRC_FILES:
                 shutil.copyfile(root_dir / src_file, bundle_dir / src_file, follow_symlinks=False)
+
+            # fix known micropython incompatibilities in game source files
+            print("Processing micropython files...")
+            games_dir = bundle_dir / "filesystem/Games"
+            if games_dir.exists() and games_dir.is_dir():
+                for path in games_dir.glob("**/*.py"):
+                    with open(path, "r") as f:
+                        content = f.read()
+                    count = 0
+                    for old, new in MICROPYTHON_MAP.items():
+                        while content.find(old) != -1:
+                            content = content.replace(old, new, 1)
+                            count += 1
+                    if count:
+                        with open(path, "w") as f:
+                            f.write(content)
+                        path_str = str(path)
+                        for i, x in enumerate(path.parts):
+                            if x == "filesystem":
+                                path_str = "/" + "/".join(path.parts[i+1:])
+                                break
+                        print(f"Fixed {count} instances in {path_str}")
 
             # install required libs
             shutil.copyfile(build_dir / "boot_out.txt", bundle_dir / "boot_out.txt")
