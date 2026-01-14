@@ -60,7 +60,7 @@ class Tween(EmptyNode):
         self._position = None
         self._playing = False
         self._finished = False
-        self._after = None
+        self.after = None
 
     def start(self, object: object, attribute_name: str, start: float|tuple, end: float|tuple, duration: int, speed: float = None, loop_type: int = ONE_SHOT, ease_type: int = EASE_LINEAR) -> None:
         # TODO: speed?
@@ -79,8 +79,11 @@ class Tween(EmptyNode):
         self._position = 1
         self._playing = False
         self._finished = True
-        if self._after and self.loop_type is ONE_SHOT:
-            self._after.restart()
+        if self.after and self.loop_type is ONE_SHOT:
+            if isinstance(self.after, Tween):
+                self.after.restart()
+            elif callable(self.after):
+                self.after()
 
     def pause(self) -> None:
         if not self._finished:
@@ -124,9 +127,6 @@ class Tween(EmptyNode):
                     value = self._tween(position, self._start, self._end)
                 if self._object:
                     setattr(self._object, self._attribute_name, value)
-
-    def after(self, tween: Tween) -> None:
-        self._after = tween
 
     @property
     def duration(self) -> int:
