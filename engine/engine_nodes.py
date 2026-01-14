@@ -329,6 +329,13 @@ class Sprite2DNode(_GroupNode):
             self._make_tg()
 
     def tick(self, dt: float) -> None:
+        if not self._tg:
+            if not self._frame_count_x:
+                self._frame_count_x = 1
+            if not self._frame_count_y:
+                self._frame_count_y = 1
+            self._make_tg()
+            
         if self.playing and self._frame_duration:
             self._frame_time += dt
             if self._frame_time >= self._frame_duration:
