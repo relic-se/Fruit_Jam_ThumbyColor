@@ -51,19 +51,22 @@ def delete_location() -> None:
             _filepath = None
             _data = None
 
-def save(entry_name, value) -> None:
-    if _data:
+def save(entry_name: str, value) -> None:
+    global _data
+    if _data is not None:
         _data[entry_name] = value
 
 def load(entry_name: str, default):
-    return _data.get(entry_name, default) if _data else default
+    global _data
+    return _data.get(entry_name, default) if _data is not None else default
 
 def delete(entry_name: str) -> None:
-    if _data:
+    global _data
+    if _data is not None:
         _data.pop(entry_name)
 
 def _dump() -> bool:
-    if _dir and _filepath and _data:
+    if _dir and _filepath and _data is not None:
         try:
             with open(f"{_DIR}/{_dir}/{_filepath}", "w") as f:
                 json.dump(_data, f)
